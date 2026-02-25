@@ -1,34 +1,34 @@
-# FemCare - Personal Menstrual Cycle Tracker 🌸
+# FemCare - Personal Menstrual Cycle Tracker 
 
 **FemCare** is a comprehensive, privacy-focused Android application designed to help users track their menstrual cycles, monitor health symptoms, and gain insights into their reproductive health. Built with a modern tech stack, the app provides a seamless experience from onboarding to daily logging and historical analysis.
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
-### 📅 Smart Cycle Tracking
+###  Smart Cycle Tracking
 - **Interactive Calendar:** Visualizes cycle phases (Period, Fertile Window, Ovulation) with color-coded indicators.
 - **Dynamic Predictions:** Automatically calculates and updates future cycle dates based on user history and averages.
 - **Onboarding Engine:** Personalized setup flow for cycle length, period duration, and last period start date.
 
-### 📝 Daily Health Logs & Insights
+###  Daily Health Logs & Insights
 - **Symptom Tracking:** Log physical symptoms (cramps, fatigue, headache) and moods with a single tap.
 - **Visual Trends:** Integrated **Bar Charts** (using MPAndroidChart) to visualize symptom frequency over the last 7 days.
 - **Water Tracker:** Interactive counter to monitor daily hydration levels.
 - **Daily Tips:** Personalized health insights based on the current cycle phase.
 
-### 📓 Persistent Notes
+###  Persistent Notes
 - **Private Journaling:** Add detailed notes for any specific date on the calendar.
 - **Recent History:** A dedicated "Recent Notes" section to quickly review past entries without navigating deep into the calendar.
 
-### ⚙️ User Experience & UI
+###  User Experience & UI
 - **Responsive Design:** Built using `ConstraintLayout` and `CoordinatorLayout` for a consistent look across various screen sizes.
 - **Gesture-Driven:** Supports horizontal and vertical swipes for navigating months and adjusting values.
 - **Material Design:** Follows Material 3 principles with custom pink-themed styling.
 
 ---
 
-## 🛠 Tech Stack
+##  Tech Stack
 
 - **Language:** Java (100%)
 - **Architecture:** MVVM (Model-View-ViewModel)
@@ -45,7 +45,7 @@
 
 ---
 
-## 🏗 Project Architecture (Experiments Implemented)
+##  Project Architecture (Experiments Implemented)
 
 This project serves as a comprehensive portfolio for **Mobile Application Development**, covering:
 1. **Intents & Activity Lifecycle:** Seamless navigation between 10+ activities.
@@ -57,7 +57,7 @@ This project serves as a comprehensive portfolio for **Mobile Application Develo
 
 ---
 
-## 📲 Installation
+##  Installation
 
 1. Clone the repository:
    ```bash
@@ -69,7 +69,7 @@ This project serves as a comprehensive portfolio for **Mobile Application Develo
 
 ---
 
-## 🤝 Contributing
+##  Contributing
 This is a college project. Suggestions and feedback are welcome! Feel free to fork the repository and submit a pull request.
 
 ---

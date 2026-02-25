@@ -10,24 +10,27 @@
         android:id="@+id/fragment_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:paddingBottom="80dp" />
+        android:layout_marginBottom="?attr/actionBarSize" />
 
     <com.google.android.material.bottomappbar.BottomAppBar
         android:id="@+id/bottomAppBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        app:fabCradleMargin="8dp"
-        app:fabCradleRoundedCornerRadius="20dp"
-        app:fabCradleVerticalOffset="8dp"
+        app:fabAlignmentMode="center"
+        app:fabCradleMargin="10dp"
+        app:fabCradleRoundedCornerRadius="12dp"
+        app:fabCradleVerticalOffset="0dp"
         app:backgroundTint="#FFFFFF">
 
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottomNav"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
             android:background="@android:color/transparent"
             app:elevation="0dp"
+            app:labelVisibilityMode="labeled"
             app:itemIconTint="@color/nav_item_color_state"
             app:itemTextColor="@color/nav_item_color_state"
             app:menu="@menu/bottom_nav_menu" />
@@ -38,9 +41,10 @@
         android:id="@+id/fabTrack"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:backgroundTint="#C2185B"
+        android:contentDescription="Track"
+        android:src="@android:drawable/ic_input_add"
+        app:backgroundTint="#C2185B"
         app:layout_anchor="@id/bottomAppBar"
-        app:tint="#FFFFFF"
-        app:srcCompat="@android:drawable/ic_input_add" />
+        app:tint="#FFFFFF" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

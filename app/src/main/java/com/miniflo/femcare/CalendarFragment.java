@@ -15,6 +15,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
@@ -23,6 +24,7 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.SetOptions;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -35,8 +37,9 @@ import java.util.Map;
 public class CalendarFragment extends Fragment {
 
     private TextView tvMonthYear;
-    private RecyclerView calendarRecyclerView;
+    private RecyclerView calendarRecyclerView, rvRecentNotes;
     private CalendarAdapter adapter;
+    private NotesAdapter notesAdapter;
     private Calendar currentCalendarDisplay;
 
     // Baseline Data
@@ -51,6 +54,7 @@ public class CalendarFragment extends Fragment {
 
         tvMonthYear = view.findViewById(R.id.tvMonthYear);
         calendarRecyclerView = view.findViewById(R.id.calendarRecyclerView);
+        rvRecentNotes = view.findViewById(R.id.rvRecentNotes);
         ImageView btnPrev = view.findViewById(R.id.btnPrevMonth);
         ImageView btnNext = view.findViewById(R.id.btnNextMonth);
 
@@ -62,7 +66,12 @@ public class CalendarFragment extends Fragment {
         adapter = new CalendarAdapter();
         calendarRecyclerView.setAdapter(adapter);
 
+        rvRecentNotes.setLayoutManager(new LinearLayoutManager(getContext()));
+        notesAdapter = new NotesAdapter();
+        rvRecentNotes.setAdapter(notesAdapter);
+
         fetchUserData();
+        fetchRecentNotes();
 
         // Button Clicks
         btnPrev.setOnClickListener(v -> changeMonth(-1));
@@ -147,6 +156,28 @@ public class CalendarFragment extends Fragment {
                         }
                         buildCalendar();
                     }
+                });
+    }
+
+    private void fetchRecentNotes() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) return;
+
+        FirebaseFirestore.getInstance().collection("users").document(user.getEmail())
+                .collection("notes")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(10)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    List<NoteItem> notes = new ArrayList<>();
+                    for (DocumentSnapshot doc : queryDocumentSnapshots) {
+                        String date = doc.getId();
+                        String text = doc.getString("noteText");
+                        if (text != null && !text.isEmpty()) {
+                            notes.add(new NoteItem(date, text));
+                        }
+                    }
+                    notesAdapter.setNotes(notes);
                 });
     }
 
@@ -271,6 +302,7 @@ public class CalendarFragment extends Fragment {
                         .set(noteData, SetOptions.merge())
                         .addOnSuccessListener(aVoid -> {
                             Toast.makeText(getContext(), "Note saved securely!", Toast.LENGTH_SHORT).show();
+                            fetchRecentNotes(); // Refresh list
                             bottomSheetDialog.dismiss();
                         });
             }
@@ -351,6 +383,44 @@ public class CalendarFragment extends Fragment {
                 cellDayText = itemView.findViewById(R.id.cellDayText);
             }
         }
+    }
+
+    // --- RECENT NOTES ADAPTER ---
+    private class NotesAdapter extends RecyclerView.Adapter<NotesAdapter.NoteViewHolder> {
+        private List<NoteItem> notes = new ArrayList<>();
+
+        public void setNotes(List<NoteItem> notes) { this.notes = notes; notifyDataSetChanged(); }
+
+        @NonNull
+        @Override
+        public NoteViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_recent_note, parent, false);
+            return new NoteViewHolder(v);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull NoteViewHolder holder, int position) {
+            NoteItem item = notes.get(position);
+            holder.tvNoteDate.setText(item.date);
+            holder.tvNoteText.setText(item.text);
+        }
+
+        @Override
+        public int getItemCount() { return notes.size(); }
+
+        class NoteViewHolder extends RecyclerView.ViewHolder {
+            TextView tvNoteDate, tvNoteText;
+            public NoteViewHolder(@NonNull View v) {
+                super(v);
+                tvNoteDate = v.findViewById(R.id.tvNoteDate);
+                tvNoteText = v.findViewById(R.id.tvNoteText);
+            }
+        }
+    }
+
+    private static class NoteItem {
+        String date, text;
+        NoteItem(String date, String text) { this.date = date; this.text = text; }
     }
 
     private GradientDrawable createCircleBg(String hexColor, boolean isSolid) {

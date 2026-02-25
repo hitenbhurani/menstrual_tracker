@@ -8,6 +8,8 @@ import android.os.Looper;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -20,34 +22,42 @@ public class MainActivity extends AppCompatActivity {
             getSupportActionBar().hide();
         }
 
+        // I changed this from 3000ms to 1500ms (1.5 seconds) - it gives a much snappier, premium feel!
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
 
-            SharedPreferences prefs = getSharedPreferences("FemCarePrefs", MODE_PRIVATE);
+            // --- 1. FIREBASE AUTH CHECK ---
+            // Ask Firebase securely if a user is currently logged in
+            FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
 
-            boolean isLoggedIn = prefs.getBoolean("is_logged_in", false);
+            // --- 2. ONBOARDING CHECK ---
+            // Still use SharedPreferences to check if they finished the setup screens
+            SharedPreferences prefs = getSharedPreferences("FemCarePrefs", MODE_PRIVATE);
             boolean onboardingComplete = prefs.getBoolean("onboarding_complete", false);
+
+            // Handy debug toast so you know exactly what the engine is doing!
             Toast.makeText(this,
-                    "LoggedIn: " + isLoggedIn + " | Onboarding: " + onboardingComplete,
+                    "Firebase Logged In: " + (currentUser != null) + " | Onboarding: " + onboardingComplete,
                     Toast.LENGTH_LONG).show();
 
             Intent intent;
 
-            if (!isLoggedIn) {
-                // User not logged in
+            // --- 3. THE TRAFFIC COP ROUTING ---
+            if (currentUser == null) {
+                // User not logged into Firebase -> Send to Login
                 intent = new Intent(MainActivity.this, LoginActivity.class);
             }
             else if (!onboardingComplete) {
-                // User logged in but onboarding incomplete
+                // User logged in but onboarding incomplete -> Send to BirthDateActivity
                 intent = new Intent(MainActivity.this, BirthDateActivity.class);
             }
             else {
-                // User fully set up
+                // User fully logged in AND set up -> Send to Dashboard
                 intent = new Intent(MainActivity.this, DashboardActivity.class);
             }
 
             startActivity(intent);
             finish();
 
-        }, 3000);
+        }, 1500);
     }
 }

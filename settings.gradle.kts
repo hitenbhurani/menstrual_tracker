@@ -16,6 +16,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // REQUIRED FOR MPANDROIDCHART:
+        maven { url = uri("https://jitpack.io") }
     }
 }
 

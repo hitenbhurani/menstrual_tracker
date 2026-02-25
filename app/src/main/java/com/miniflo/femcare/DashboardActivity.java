@@ -1,10 +1,6 @@
 package com.miniflo.femcare;
 
-import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.Button;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
@@ -22,30 +18,28 @@ public class DashboardActivity extends AppCompatActivity {
             getSupportActionBar().hide();
         }
 
-        Button tempSignOutButton = findViewById(R.id.tempSignOutButton);
         BottomNavigationView bottomNav = findViewById(R.id.bottomNav);
         FloatingActionButton fabTrack = findViewById(R.id.fabTrack);
 
         // --- LOAD DEFAULT FRAGMENT (Today) ---
         if (savedInstanceState == null) {
-            getSupportFragmentManager().beginTransaction().replace(R.id.fragment_container, new TodayFragment()).commit();
+            getSupportFragmentManager().beginTransaction()
+                    .replace(R.id.fragment_container, new TodayFragment())
+                    .commit();
         }
 
-        // --- SIGN OUT LOGIC ---
-        tempSignOutButton.setOnClickListener(v -> {
-            SharedPreferences prefs = getSharedPreferences("FemCarePrefs", MODE_PRIVATE);
-            prefs.edit().putBoolean("is_logged_in", false).apply();
-            Toast.makeText(DashboardActivity.this, "Signed out successfully", Toast.LENGTH_SHORT).show();
-
-            Intent intent = new Intent(DashboardActivity.this, LoginActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            startActivity(intent);
+        // --- FAB CLICK LOGIC ---
+        fabTrack.setOnClickListener(v -> {
+            getSupportFragmentManager()
+                    .beginTransaction()
+                    .setCustomAnimations(android.R.anim.slide_in_left, android.R.anim.fade_out)
+                    .replace(R.id.fragment_container, new TrackFragment())
+                    // Adding to backstack means if they press the phone's back button, it goes back to the dashboard!
+                    .addToBackStack(null)
+                    .commit();
         });
 
-        // --- FAB CLICK LOGIC ---
-        fabTrack.setOnClickListener(v -> Toast.makeText(DashboardActivity.this, "Track screen coming soon!", Toast.LENGTH_SHORT).show());
-
-        // --- BOTTOM NAV CLICK LOGIC (Swaps all 4 fragments perfectly) ---
+        // --- BOTTOM NAV CLICK LOGIC (Fragment Swapper) ---
         bottomNav.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
             Fragment selectedFragment = null;
@@ -60,10 +54,11 @@ public class DashboardActivity extends AppCompatActivity {
                 selectedFragment = new SettingsFragment();
             }
 
-            // Perform the actual swap
+            // Perform the visual swap
             if (selectedFragment != null) {
                 getSupportFragmentManager()
                         .beginTransaction()
+                        .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out) // Smooth transition
                         .replace(R.id.fragment_container, selectedFragment)
                         .commit();
                 return true;

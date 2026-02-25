@@ -1,108 +1,151 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FDEEF4"
-    android:padding="24dp">
+    android:background="#FDEEF4">
 
     <TextView
         android:id="@+id/todayDateText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="16dp"
-        android:text="Today, Loading..."
-        android:textColor="#000000"
-        android:textSize="20sp"
-        android:textStyle="bold" />
+        android:layout_marginTop="32dp"
+        android:text="Today,..."
+        android:textColor="#1A1A1A"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <LinearLayout
-        android:id="@+id/weeklyCalendarLayout"
+        android:id="@+id/weekStripLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/todayDateText"
+        android:layout_marginHorizontal="24dp"
         android:layout_marginTop="24dp"
         android:baselineAligned="false"
         android:orientation="horizontal"
-        android:weightSum="7">
-
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="S" android:textColor="#BDBDBD" android:textSize="14sp" />
-            <TextView android:id="@+id/date1" android:layout_width="36dp" android:layout_height="36dp" android:layout_marginTop="8dp" android:gravity="center" android:text="-" android:textColor="#000000" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="M" android:textColor="#BDBDBD" android:textSize="14sp" />
-            <TextView android:id="@+id/date2" android:layout_width="36dp" android:layout_height="36dp" android:layout_marginTop="8dp" android:gravity="center" android:text="-" android:textColor="#000000" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="T" android:textColor="#BDBDBD" android:textSize="14sp" />
-            <TextView android:id="@+id/date3" android:layout_width="36dp" android:layout_height="36dp" android:layout_marginTop="8dp" android:gravity="center" android:text="-" android:textColor="#000000" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="W" android:textColor="#BDBDBD" android:textSize="14sp" />
-            <TextView android:id="@+id/date4" android:layout_width="36dp" android:layout_height="36dp" android:layout_marginTop="8dp" android:gravity="center" android:text="-" android:textColor="#000000" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="T" android:textColor="#BDBDBD" android:textSize="14sp" />
-            <TextView android:id="@+id/date5" android:layout_width="36dp" android:layout_height="36dp" android:layout_marginTop="8dp" android:gravity="center" android:text="-" android:textColor="#000000" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="F" android:textColor="#BDBDBD" android:textSize="14sp" />
-            <TextView android:id="@+id/date6" android:layout_width="36dp" android:layout_height="36dp" android:layout_marginTop="8dp" android:gravity="center" android:text="-" android:textColor="#000000" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
-
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:orientation="vertical">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="S" android:textColor="#BDBDBD" android:textSize="14sp" />
-            <TextView android:id="@+id/date7" android:layout_width="36dp" android:layout_height="36dp" android:layout_marginTop="8dp" android:gravity="center" android:text="-" android:textColor="#000000" android:textSize="16sp" android:textStyle="bold" />
-        </LinearLayout>
+        android:weightSum="7"
+        app:layout_constraintTop_toBottomOf="@id/todayDateText">
     </LinearLayout>
 
-    <RelativeLayout
-        android:layout_width="300dp"
-        android:layout_height="300dp"
-        android:layout_below="@id/weeklyCalendarLayout"
-        android:layout_centerHorizontal="true"
+    <FrameLayout
+        android:id="@+id/centralHubContainer"
+        android:layout_width="320dp"
+        android:layout_height="320dp"
         android:layout_marginTop="32dp"
-        android:background="@drawable/bg_hexagon">
+        android:visibility="invisible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/weekStripLayout">
+
+        <ImageView
+            android:id="@+id/hexBackground"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="20dp"
+            android:src="@drawable/bg_hexagon"
+            app:tint="#F8BBD0" />
+
+        <com.miniflo.femcare.HexagonProgressBar
+            android:id="@+id/hexProgressBar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:padding="40dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Next period:"
-                android:textColor="#D81B60"
-                android:textSize="16sp" />
+                android:textColor="#C2185B"
+                android:textSize="18sp" />
 
             <TextView
-                android:id="@+id/predictedPeriodText"
+                android:id="@+id/nextPeriodDateText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Calculating..."
+                android:text="..."
                 android:textColor="#C2185B"
-                android:textSize="32sp"
+                android:textSize="36sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:id="@+id/chanceText"
+                android:id="@+id/pregnancyChanceText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="12dp"
                 android:gravity="center"
-                android:text="Calculating\nchances..."
+                android:text="..."
                 android:textColor="#424242"
                 android:textSize="14sp" />
         </LinearLayout>
-    </RelativeLayout>
+    </FrameLayout>
 
-</RelativeLayout>
+    <ProgressBar
+        android:id="@+id/loadingSpinner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:indeterminateTint="#C2185B"
+        app:layout_constraintBottom_toBottomOf="@id/centralHubContainer"
+        app:layout_constraintEnd_toEndOf="@id/centralHubContainer"
+        app:layout_constraintStart_toStartOf="@id/centralHubContainer"
+        app:layout_constraintTop_toTopOf="@id/centralHubContainer" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="24dp"
+        android:layout_marginTop="32dp"
+        app:cardBackgroundColor="#FFFFFF"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="4dp"
+        app:layout_constraintTop_toBottomOf="@id/centralHubContainer">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_menu_info_details"
+                    app:tint="#C2185B" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Daily Insight"
+                    android:textColor="#C2185B"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/dailyInsightText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Loading today's tip..."
+                android:textColor="#424242"
+                android:textSize="16sp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

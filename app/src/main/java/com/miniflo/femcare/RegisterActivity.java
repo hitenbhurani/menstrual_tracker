@@ -1,100 +1,83 @@
 package com.miniflo.femcare;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.text.TextUtils;
+import android.util.Patterns;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ProgressBar;
 import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
-
-import com.google.android.material.button.MaterialButton;
+import androidx.lifecycle.ViewModelProvider;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
+import com.miniflo.femcare.viewmodel.AuthViewModel;
 
 public class RegisterActivity extends AppCompatActivity {
 
-    private TextInputEditText nameInput, emailInput, passwordInput, confirmInput;
-    private TextInputLayout nameLayout, emailLayout, passwordLayout, confirmLayout;
-    private MaterialButton registerButton;
+    private AuthViewModel authViewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().hide();
-        }
+        if (getSupportActionBar() != null) getSupportActionBar().hide();
 
-        nameInput = findViewById(R.id.regNameInput);
-        emailInput = findViewById(R.id.regEmailInput);
-        passwordInput = findViewById(R.id.regPasswordInput);
-        confirmInput = findViewById(R.id.regConfirmInput);
+        authViewModel = new ViewModelProvider(this).get(AuthViewModel.class);
 
-        nameLayout = findViewById(R.id.nameLayout);
-        emailLayout = findViewById(R.id.emailLayout);
-        passwordLayout = findViewById(R.id.passwordLayout);
-        confirmLayout = findViewById(R.id.confirmLayout);
+        TextInputEditText nameInput = findViewById(R.id.regNameInput);
+        TextInputEditText emailInput = findViewById(R.id.regEmailInput);
+        TextInputEditText passwordInput = findViewById(R.id.regPasswordInput);
+        TextInputEditText confirmInput = findViewById(R.id.regConfirmInput);
+        Button registerButton = findViewById(R.id.registerButton);
+        ProgressBar progressBar = findViewById(R.id.progressBar);
 
-        registerButton = findViewById(R.id.registerButton);
+        registerButton.setOnClickListener(v -> {
+            String name = nameInput.getText() != null ? nameInput.getText().toString().trim() : "";
+            String email = emailInput.getText() != null ? emailInput.getText().toString().trim() : "";
+            String password = passwordInput.getText() != null ? passwordInput.getText().toString().trim() : "";
+            String confirmPass = confirmInput.getText() != null ? confirmInput.getText().toString().trim() : "";
 
-        registerButton.setOnClickListener(v -> registerUser());
-    }
+            // --- STRICT VALIDATION RULES (Age Removed) ---
+            if (name.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPass.isEmpty()) {
+                Toast.makeText(this, "All fields are required!", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-    private void registerUser() {
+            if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                emailInput.setError("Invalid email format");
+                return;
+            }
 
-        String name = nameInput.getText().toString().trim();
-        String email = emailInput.getText().toString().trim();
-        String password = passwordInput.getText().toString().trim();
-        String confirm = confirmInput.getText().toString().trim();
+            if (password.length() < 6) {
+                passwordInput.setError("Password must be at least 6 characters");
+                return;
+            }
 
-        nameLayout.setError(null);
-        emailLayout.setError(null);
-        passwordLayout.setError(null);
-        confirmLayout.setError(null);
+            if (!password.equals(confirmPass)) {
+                confirmInput.setError("Passwords do not match!");
+                return;
+            }
 
-        if (TextUtils.isEmpty(name)) {
-            nameLayout.setError("Name required");
-            return;
-        }
+            // --- MVVM FIREBASE REGISTRATION ---
+            progressBar.setVisibility(View.VISIBLE);
+            registerButton.setEnabled(false);
 
-        if (TextUtils.isEmpty(email)) {
-            emailLayout.setError("Email required");
-            return;
-        }
+            authViewModel.register(email, password, name).observe(this, isSuccess -> {
+                progressBar.setVisibility(View.GONE);
+                registerButton.setEnabled(true);
 
-        if (TextUtils.isEmpty(password)) {
-            passwordLayout.setError("Password required");
-            return;
-        }
+                if (isSuccess) {
+                    Toast.makeText(this, "Registration Successful!", Toast.LENGTH_SHORT).show();
 
-        if (password.length() < 6) {
-            passwordLayout.setError("Minimum 6 characters required");
-            return;
-        }
-
-        if (!password.equals(confirm)) {
-            confirmLayout.setError("Passwords do not match");
-            return;
-        }
-
-        SharedPreferences prefs = getSharedPreferences("FemCarePrefs", MODE_PRIVATE);
-        SharedPreferences.Editor editor = prefs.edit();
-
-        editor.putString("name", name);
-        editor.putString("email", email);
-        editor.putString("password", password);
-
-        editor.putBoolean("is_logged_in", true);
-        editor.putBoolean("onboarding_complete", false);
-
-        editor.apply();
-
-        Toast.makeText(this, "Registration Successful", Toast.LENGTH_SHORT).show();
-
-        Intent intent = new Intent(RegisterActivity.this, BirthDateActivity.class);
-        startActivity(intent);
-        finish();
+                    // Route to Onboarding!
+                    Intent intent = new Intent(RegisterActivity.this, BirthDateActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                } else {
+                    Toast.makeText(this, "Registration Failed. Check your network or try another email.", Toast.LENGTH_LONG).show();
+                }
+            });
+        });
     }
 }

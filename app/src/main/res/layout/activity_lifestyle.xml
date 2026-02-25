@@ -15,24 +15,23 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="24dp"
-            android:layout_gravity="center">
+            android:gravity="center">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Create Account"
+                android:layout_marginBottom="24dp"
+                android:text="Lifestyle &amp; Goals"
                 android:textColor="#C2185B"
-                android:textSize="32sp"
-                android:textStyle="bold"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="24dp"/>
+                android:textSize="36sp"
+                android:textStyle="bold" />
 
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                app:cardBackgroundColor="#FFFFFF"
                 app:cardCornerRadius="24dp"
-                app:cardElevation="0dp"
-                app:cardBackgroundColor="#FFFFFF">
+                app:cardElevation="0dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -41,7 +40,7 @@
                     android:padding="24dp">
 
                     <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="16dp"
@@ -50,12 +49,12 @@
                         app:boxCornerRadiusBottomStart="16dp"
                         app:boxCornerRadiusBottomEnd="16dp">
 
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/regNameInput"
+                        <AutoCompleteTextView
+                            android:id="@+id/dropdownGoal"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:hint="Full Name"
-                            android:inputType="textPersonName"/>
+                            android:hint="Primary Goal"
+                            android:inputType="none" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
@@ -69,68 +68,41 @@
                         app:boxCornerRadiusBottomEnd="16dp">
 
                         <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/regEmailInput"
+                            android:id="@+id/sleepInput"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:hint="Email Address"
-                            android:inputType="textEmailAddress"/>
+                            android:hint="Average Sleep (Hours)"
+                            android:inputType="number"
+                            android:maxLength="2" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
-                        app:endIconMode="password_toggle"
+                        android:layout_marginBottom="32dp"
                         app:boxCornerRadiusTopStart="16dp"
                         app:boxCornerRadiusTopEnd="16dp"
                         app:boxCornerRadiusBottomStart="16dp"
                         app:boxCornerRadiusBottomEnd="16dp">
 
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/regPasswordInput"
+                        <AutoCompleteTextView
+                            android:id="@+id/dropdownExercise"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:hint="Password"
-                            android:inputType="textPassword"/>
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="24dp"
-                        app:endIconMode="password_toggle"
-                        app:boxCornerRadiusTopStart="16dp"
-                        app:boxCornerRadiusTopEnd="16dp"
-                        app:boxCornerRadiusBottomStart="16dp"
-                        app:boxCornerRadiusBottomEnd="16dp">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/regConfirmInput"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:hint="Confirm Password"
-                            android:inputType="textPassword"/>
+                            android:hint="Exercise Frequency"
+                            android:inputType="none" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/registerButton"
+                        android:id="@+id/nextButton"
                         android:layout_width="match_parent"
                         android:layout_height="60dp"
                         android:backgroundTint="#C2185B"
-                        android:text="Register"
+                        android:text="Continue"
                         android:textAllCaps="false"
                         android:textSize="18sp"
-                        app:cornerRadius="30dp"/>
-
-                    <ProgressBar
-                        android:id="@+id/progressBar"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:layout_marginTop="16dp"
-                        android:visibility="gone" />
+                        app:cornerRadius="30dp" />
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>

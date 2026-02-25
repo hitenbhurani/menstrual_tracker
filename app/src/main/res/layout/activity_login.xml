@@ -107,6 +107,13 @@
                     android:textAllCaps="false"
                     android:textSize="18sp"
                     app:cornerRadius="30dp" />
+                <ProgressBar
+                    android:id="@+id/loginProgressBar"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginTop="16dp"
+                    android:visibility="gone" />
 
                 <!-- Register Text -->
                 <TextView

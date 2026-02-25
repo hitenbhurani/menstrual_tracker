@@ -1,0 +1,439 @@
+package com.miniflo.femcare;
+
+import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.view.GestureDetector;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.CheckBox;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.github.mikephil.charting.charts.BarChart;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.data.BarData;
+import com.github.mikephil.charting.data.BarDataSet;
+import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.SetOptions;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+public class TrackFragment extends Fragment {
+
+    private TextView tvTrackDateHeader, tvWaterCount, tvHistMonth, tvDailyInsightTrack;
+    private LinearLayout weekStripLayoutTrack, periodEndsContainer;
+    private CheckBox cbPeriodEnds;
+    private RecyclerView historyCalendarGrid;
+    private BarChart symptomTrendChart;
+
+    private List<TextView> allChips = new ArrayList<>();
+    private List<String> selectedLogs = new ArrayList<>();
+    private Map<String, List<String>> loggedHistoryCache = new HashMap<>();
+
+    private Calendar currentlySelectedDate;
+    private Calendar currentHistoryMonth;
+    private long userLastPeriodMillis = 0;
+    private int userPeriodDuration = 5;
+    private int userCycleLength = 28;
+
+    private int waterGlasses = 0;
+
+    @Nullable
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_track, container, false);
+
+        tvTrackDateHeader = view.findViewById(R.id.tvTrackDateHeader);
+        tvDailyInsightTrack = view.findViewById(R.id.tvDailyInsightTrack);
+        weekStripLayoutTrack = view.findViewById(R.id.weekStripLayoutTrack);
+        periodEndsContainer = view.findViewById(R.id.periodEndsContainer);
+        cbPeriodEnds = view.findViewById(R.id.cbPeriodEnds);
+        historyCalendarGrid = view.findViewById(R.id.historyCalendarGrid);
+        symptomTrendChart = view.findViewById(R.id.symptomTrendChart);
+
+        tvWaterCount = view.findViewById(R.id.tvWaterCount);
+        tvHistMonth = view.findViewById(R.id.tvHistMonth);
+
+        currentlySelectedDate = Calendar.getInstance();
+        currentHistoryMonth = Calendar.getInstance();
+
+        setupHeaderAndStrip();
+        setupToggleChips(view);
+        setupWaterTracker(view);
+        setupHistoryControls(view);
+
+        fetchPeriodLogicAndHistory();
+        fetchSymptomTrends();
+
+        view.findViewById(R.id.btnSaveDailyLog).setOnClickListener(v -> saveDailyLogToDatabase());
+
+        setupSwipeGestures();
+
+        return view;
+    }
+
+    private void setupSwipeGestures() {
+        GestureDetector gestureDetector = new GestureDetector(getContext(), new GestureDetector.SimpleOnGestureListener() {
+            private static final int SWIPE_THRESHOLD = 100;
+            private static final int SWIPE_VELOCITY_THRESHOLD = 100;
+
+            @Override
+            public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                float diffX = e2.getX() - e1.getX();
+                if (Math.abs(diffX) > Math.abs(e2.getY() - e1.getY())) {
+                    if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
+                        if (diffX > 0) {
+                            changeHistoryMonth(-1);
+                        } else {
+                            changeHistoryMonth(1);
+                        }
+                        return true;
+                    }
+                }
+                return false;
+            }
+        });
+
+        historyCalendarGrid.addOnItemTouchListener(new RecyclerView.SimpleOnItemTouchListener() {
+            @Override
+            public boolean onInterceptTouchEvent(@NonNull RecyclerView rv, @NonNull MotionEvent e) {
+                gestureDetector.onTouchEvent(e);
+                return false;
+            }
+        });
+    }
+
+    private void changeHistoryMonth(int amount) {
+        currentHistoryMonth.add(Calendar.MONTH, amount);
+        buildHistoryCalendar();
+    }
+
+    private void setupWaterTracker(View view) {
+        view.findViewById(R.id.btnWaterMinus).setOnClickListener(v -> {
+            if (waterGlasses > 0) {
+                waterGlasses--;
+                tvWaterCount.setText(String.valueOf(waterGlasses));
+            }
+        });
+        view.findViewById(R.id.btnWaterPlus).setOnClickListener(v -> {
+            if (waterGlasses < 20) {
+                waterGlasses++;
+                tvWaterCount.setText(String.valueOf(waterGlasses));
+            }
+        });
+    }
+
+    private void setupHistoryControls(View view) {
+        view.findViewById(R.id.btnHistPrev).setOnClickListener(v -> changeHistoryMonth(-1));
+        view.findViewById(R.id.btnHistNext).setOnClickListener(v -> changeHistoryMonth(1));
+    }
+
+    private void fetchPeriodLogicAndHistory() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) return;
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        db.collection("users").document(user.getEmail()).get().addOnSuccessListener(doc -> {
+            if (doc.contains("lastPeriodStartMillis")) {
+                userLastPeriodMillis = doc.getLong("lastPeriodStartMillis");
+                userPeriodDuration = doc.getLong("periodDuration").intValue();
+                userCycleLength = doc.getLong("averageCycleLength").intValue();
+                enforcePeriodCheckboxLogic();
+            }
+        });
+
+        db.collection("users").document(user.getEmail()).collection("daily_logs").get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    loggedHistoryCache.clear();
+                    for (DocumentSnapshot logDoc : queryDocumentSnapshots) {
+                        List<String> traits = (List<String>) logDoc.get("loggedTraits");
+                        Long water = logDoc.getLong("waterGlasses");
+                        List<String> combinedTraits = new ArrayList<>();
+                        if (traits != null) combinedTraits.addAll(traits);
+                        if (water != null) combinedTraits.add("💧 Water: " + water + " glasses");
+                        
+                        if (!combinedTraits.isEmpty()) {
+                            loggedHistoryCache.put(logDoc.getId(), combinedTraits);
+                        }
+                    }
+                    buildHistoryCalendar();
+                });
+    }
+
+    private void fetchSymptomTrends() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) return;
+
+        FirebaseFirestore.getInstance().collection("users").document(user.getEmail())
+                .collection("daily_logs")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(7)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    List<BarEntry> entries = new ArrayList<>();
+                    List<String> labels = new ArrayList<>();
+                    int i = 0;
+                    
+                    // We iterate in reverse to show chronological order on chart
+                    List<DocumentSnapshot> docs = queryDocumentSnapshots.getDocuments();
+                    for (int j = docs.size() - 1; j >= 0; j--) {
+                        DocumentSnapshot doc = docs.get(j);
+                        List<String> traits = (List<String>) doc.get("loggedTraits");
+                        int symptomCount = (traits != null) ? traits.size() : 0;
+                        
+                        entries.add(new BarEntry(i, symptomCount));
+                        String date = doc.getId().substring(5); // Show only MM-DD
+                        labels.add(date);
+                        i++;
+                    }
+                    setupChart(entries, labels);
+                });
+    }
+
+    private void setupChart(List<BarEntry> entries, List<String> labels) {
+        if (entries.isEmpty()) {
+            symptomTrendChart.setNoDataText("Log symptoms to see trends here!");
+            return;
+        }
+
+        BarDataSet dataSet = new BarDataSet(entries, "Symptoms Logged");
+        dataSet.setColor(Color.parseColor("#C2185B"));
+        dataSet.setValueTextColor(Color.BLACK);
+        dataSet.setValueTextSize(10f);
+
+        BarData barData = new BarData(dataSet);
+        symptomTrendChart.setData(barData);
+
+        symptomTrendChart.getDescription().setEnabled(false);
+        symptomTrendChart.getLegend().setEnabled(false);
+        
+        XAxis xAxis = symptomTrendChart.getXAxis();
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setGranularity(1f);
+        xAxis.setDrawGridLines(false);
+
+        symptomTrendChart.getAxisLeft().setDrawGridLines(false);
+        symptomTrendChart.getAxisRight().setEnabled(false);
+        symptomTrendChart.animateY(1000);
+        symptomTrendChart.invalidate();
+    }
+
+    private void enforcePeriodCheckboxLogic() {
+        if (userLastPeriodMillis == 0) return;
+        Calendar now = Calendar.getInstance();
+        now.set(Calendar.HOUR_OF_DAY, 0);
+        long diffMillis = now.getTimeInMillis() - userLastPeriodMillis;
+        int daysDiff = (int) Math.floor(diffMillis / (1000.0 * 60 * 60 * 24));
+
+        boolean isCurrentlyBleeding = (daysDiff >= 0 && daysDiff < userPeriodDuration);
+
+        if (isCurrentlyBleeding) {
+            tvDailyInsightTrack.setText("Menstrual Phase: Be gentle with yourself today. Hydration helps with cramps!");
+        } else if (daysDiff >= userCycleLength - 19 && daysDiff <= userCycleLength - 13) {
+            tvDailyInsightTrack.setText("Fertile Window: Energy is peaking! Great day for a workout or socializing.");
+        } else {
+            tvDailyInsightTrack.setText("Luteal Phase: You might feel a bit slower today. Rest up if you need to!");
+        }
+
+        if (!isCurrentlyBleeding) {
+            cbPeriodEnds.setChecked(false);
+            periodEndsContainer.setOnClickListener(v ->
+                    Toast.makeText(getContext(), "You have to actually start a period before you can end it! XD", Toast.LENGTH_LONG).show()
+            );
+        } else {
+            periodEndsContainer.setOnClickListener(v -> cbPeriodEnds.setChecked(!cbPeriodEnds.isChecked()));
+        }
+    }
+
+    private void buildHistoryCalendar() {
+        SimpleDateFormat sdf = new SimpleDateFormat("MMMM yyyy", Locale.getDefault());
+        tvHistMonth.setText(sdf.format(currentHistoryMonth.getTime()));
+
+        historyCalendarGrid.setLayoutManager(new GridLayoutManager(getContext(), 7));
+        LogAdapter adapter = new LogAdapter();
+
+        List<Calendar> daysInMonth = new ArrayList<>();
+        Calendar monthCal = (Calendar) currentHistoryMonth.clone();
+        monthCal.set(Calendar.DAY_OF_MONTH, 1);
+
+        int firstDayOfWeek = monthCal.get(Calendar.DAY_OF_WEEK) - 1;
+        monthCal.add(Calendar.DAY_OF_MONTH, -firstDayOfWeek);
+
+        for (int i = 0; i < 42; i++) {
+            daysInMonth.add((Calendar) monthCal.clone());
+            monthCal.add(Calendar.DAY_OF_MONTH, 1);
+        }
+
+        adapter.setDays(daysInMonth);
+        historyCalendarGrid.setAdapter(adapter);
+    }
+
+    private class LogAdapter extends RecyclerView.Adapter<LogAdapter.LogViewHolder> {
+        private List<Calendar> days = new ArrayList<>();
+        SimpleDateFormat dbFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        SimpleDateFormat displayFormat = new SimpleDateFormat("MMM d, yyyy", Locale.getDefault());
+
+        public void setDays(List<Calendar> days) { this.days = days; notifyDataSetChanged(); }
+
+        @NonNull
+        @Override
+        public LogViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_calendar_day, parent, false);
+            return new LogViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull LogViewHolder holder, int position) {
+            Calendar cellDate = days.get(position);
+            holder.cellDayText.setText(String.valueOf(cellDate.get(Calendar.DAY_OF_MONTH)));
+
+            if (cellDate.get(Calendar.MONTH) != currentHistoryMonth.get(Calendar.MONTH)) {
+                holder.cellDayText.setTextColor(Color.parseColor("#757575"));
+                holder.cellDayText.setBackground(null);
+                holder.itemView.setOnLongClickListener(null);
+                return;
+            }
+
+            String dateKey = dbFormat.format(cellDate.getTime());
+
+            if (loggedHistoryCache.containsKey(dateKey)) {
+                GradientDrawable shape = new GradientDrawable();
+                shape.setShape(GradientDrawable.OVAL);
+                shape.setColor(Color.parseColor("#F8BBD0"));
+                shape.setSize(40, 40);
+                holder.cellDayText.setBackground(shape);
+                holder.cellDayText.setTextColor(Color.parseColor("#C2185B"));
+
+                holder.itemView.setOnLongClickListener(v -> {
+                    List<String> traits = loggedHistoryCache.get(dateKey);
+                    String msg = (traits != null) ? String.join("\n• ", traits) : "No details.";
+                    new MaterialAlertDialogBuilder(requireContext())
+                            .setTitle("Log from " + displayFormat.format(cellDate.getTime()))
+                            .setMessage("• " + msg)
+                            .setPositiveButton("Close", null)
+                            .show();
+                    return true;
+                });
+            } else {
+                holder.cellDayText.setBackground(null);
+                holder.cellDayText.setTextColor(Color.BLACK);
+                holder.itemView.setOnLongClickListener(null);
+            }
+        }
+        @Override
+        public int getItemCount() { return days.size(); }
+
+        class LogViewHolder extends RecyclerView.ViewHolder {
+            TextView cellDayText;
+            public LogViewHolder(@NonNull View itemView) { super(itemView); cellDayText = itemView.findViewById(R.id.cellDayText); }
+        }
+    }
+
+    private void setupHeaderAndStrip() {
+        SimpleDateFormat headerFormat = new SimpleDateFormat("MMMM d, yyyy", Locale.getDefault());
+        tvTrackDateHeader.setText("Tracking for " + headerFormat.format(currentlySelectedDate.getTime()));
+
+        Calendar calendar = (Calendar) currentlySelectedDate.clone();
+        calendar.set(Calendar.DAY_OF_WEEK, calendar.getFirstDayOfWeek());
+        SimpleDateFormat dayLetterFormat = new SimpleDateFormat("E", Locale.getDefault());
+
+        weekStripLayoutTrack.removeAllViews();
+        for (int i = 0; i < 7; i++) {
+            LinearLayout dayCol = new LinearLayout(getContext());
+            dayCol.setOrientation(LinearLayout.VERTICAL);
+            dayCol.setGravity(Gravity.CENTER);
+            dayCol.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f));
+
+            TextView letterText = new TextView(getContext());
+            letterText.setText(dayLetterFormat.format(calendar.getTime()).substring(0, 1));
+            letterText.setTextColor(Color.parseColor("#BDBDBD"));
+            letterText.setGravity(Gravity.CENTER);
+
+            TextView numberText = new TextView(getContext());
+            numberText.setText(String.valueOf(calendar.get(Calendar.DAY_OF_MONTH)));
+            numberText.setTextSize(18f);
+            numberText.setGravity(Gravity.CENTER);
+
+            if (calendar.get(Calendar.DAY_OF_YEAR) == currentlySelectedDate.get(Calendar.DAY_OF_YEAR)) {
+                numberText.setTextColor(Color.WHITE);
+                numberText.setBackgroundResource(R.drawable.circle_background_pink);
+            } else {
+                numberText.setTextColor(Color.BLACK);
+            }
+
+            dayCol.addView(letterText);
+            dayCol.addView(numberText);
+            weekStripLayoutTrack.addView(dayCol);
+            calendar.add(Calendar.DAY_OF_MONTH, 1);
+        }
+    }
+
+    private void setupToggleChips(View view) {
+        int[] chipIds = {
+                R.id.sympCramps, R.id.sympBackache, R.id.sympBloating, R.id.sympFatigue, R.id.sympHeadache, R.id.sympTender, R.id.sympAcne, R.id.sympSpotting,
+                R.id.moodCalm, R.id.moodHappy, R.id.moodSad, R.id.moodAnxious, R.id.moodSwings, R.id.moodIrritable, R.id.moodApathetic, R.id.moodSensitive,
+                R.id.disDry, R.id.disSticky, R.id.disCreamy, R.id.disEggwhite, R.id.disWatery,
+                R.id.enHigh, R.id.enNormal, R.id.enExhausted
+        };
+
+        for (int id : chipIds) {
+            TextView chip = view.findViewById(id);
+            if (chip == null) continue;
+            allChips.add(chip);
+            chip.setOnClickListener(v -> {
+                String trait = chip.getText().toString();
+                if (selectedLogs.contains(trait)) {
+                    selectedLogs.remove(trait);
+                    chip.setBackgroundResource(R.drawable.bg_symptom_unselected);
+                } else {
+                    selectedLogs.add(trait);
+                    chip.setBackgroundResource(R.drawable.bg_symptom_selected);
+                }
+            });
+        }
+    }
+
+    private void saveDailyLogToDatabase() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) return;
+
+        String dateKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentlySelectedDate.getTime());
+
+        Map<String, Object> logData = new HashMap<>();
+        logData.put("loggedTraits", selectedLogs);
+        logData.put("waterGlasses", waterGlasses);
+        logData.put("periodEndsToday", cbPeriodEnds.isChecked());
+        logData.put("timestamp", System.currentTimeMillis());
+
+        FirebaseFirestore.getInstance().collection("users").document(user.getEmail())
+                .collection("daily_logs").document(dateKey)
+                .set(logData, SetOptions.merge())
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(getContext(), "Daily Log Saved successfully!", Toast.LENGTH_SHORT).show();
+                    fetchPeriodLogicAndHistory();
+                    fetchSymptomTrends(); // Refresh graph!
+                });
+    }
+}

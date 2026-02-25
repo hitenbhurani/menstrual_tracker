@@ -9,4 +9,14 @@
         <item name="colorAccent">#E91E63</item> </style>
 
     <style name="Theme.FemCare" parent="Base.Theme.FemCare" />
+    <style name="TrackerChip">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_columnWeight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:padding">12dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">#1A1A1A</item>
+        <item name="android:background">@drawable/bg_symptom_unselected</item>
+    </style>
 </resources>

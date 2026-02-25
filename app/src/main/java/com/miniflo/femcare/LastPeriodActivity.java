@@ -7,67 +7,91 @@ import android.widget.Button;
 import android.widget.CalendarView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.miniflo.femcare.viewmodel.AuthViewModel;
 import java.util.Calendar;
 
 public class LastPeriodActivity extends AppCompatActivity {
 
-    long selectedDateMillis = 0; // Stores the exact millisecond time of the chosen date
+    private long selectedDateMillis = 0;
+    private AuthViewModel authViewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_last_period);
+
         if (getSupportActionBar() != null) getSupportActionBar().hide();
+
+        authViewModel = new ViewModelProvider(this).get(AuthViewModel.class);
 
         CalendarView calendarView = findViewById(R.id.calendarView);
         TextInputEditText durationInput = findViewById(R.id.durationInput);
         Button nextButton = findViewById(R.id.nextButton);
         Button notSureButton = findViewById(R.id.notSureButton);
 
-        calendarView.setMaxDate(System.currentTimeMillis()); // Block future dates
+        // Block future dates (Cannot select a period that hasn't happened yet!)
+        calendarView.setMaxDate(System.currentTimeMillis());
 
         // Listen for user calendar taps
         calendarView.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
             Calendar cal = Calendar.getInstance();
-            cal.set(year, month, dayOfMonth, 0, 0, 0); // Zero out the clock!
+            cal.set(year, month, dayOfMonth, 0, 0, 0);
             cal.set(Calendar.MILLISECOND, 0);
             selectedDateMillis = cal.getTimeInMillis();
         });
 
+        // --- MAIN BUTTON LOGIC ---
         nextButton.setOnClickListener(v -> {
-            String durationStr = durationInput.getText().toString().trim();
+            String durationStr = durationInput.getText() != null ? durationInput.getText().toString().trim() : "";
 
             if (selectedDateMillis == 0) {
-                Toast.makeText(this, "Please select a start date.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Please select a start date on the calendar.", Toast.LENGTH_SHORT).show();
                 return;
             }
             if (durationStr.isEmpty()) {
-                Toast.makeText(this, "Please enter how many days it lasted.", Toast.LENGTH_SHORT).show();
+                durationInput.setError("Required");
                 return;
             }
 
             int duration = Integer.parseInt(durationStr);
+            if (duration < 1 || duration > 15) {
+                durationInput.setError("Please enter a valid duration (1-15)");
+                return;
+            }
 
-            // --- SAVE REAL DATA TO DATABASE ---
-            SharedPreferences prefs = getSharedPreferences("FemCarePrefs", MODE_PRIVATE);
-            prefs.edit()
-                    .putLong("lastPeriodStartMillis", selectedDateMillis)
-                    .putInt("periodDuration", duration)
-                    .apply();
-
-            // Proceed to next screen
-            startActivity(new Intent(LastPeriodActivity.this, ReproductiveProblemsActivity.class));
+            saveDataAndMoveOn(duration, selectedDateMillis);
         });
 
+        // --- "NOT SURE" BUTTON LOGIC ---
         notSureButton.setOnClickListener(v -> {
-            // If they aren't sure, set a default 28-day cycle starting 14 days ago so the app doesn't crash
+            // Default to a 5-day period that started 14 days ago
             Calendar defaultCal = Calendar.getInstance();
             defaultCal.add(Calendar.DAY_OF_YEAR, -14);
-            SharedPreferences prefs = getSharedPreferences("FemCarePrefs", MODE_PRIVATE);
-            prefs.edit().putLong("lastPeriodStartMillis", defaultCal.getTimeInMillis()).putInt("periodDuration", 5).apply();
-
-            startActivity(new Intent(LastPeriodActivity.this, ReproductiveProblemsActivity.class));
+            saveDataAndMoveOn(5, defaultCal.getTimeInMillis());
         });
+    }
+
+    private void saveDataAndMoveOn(int duration, long startMillis) {
+        // 1. Save locally for fast Dashboard access
+        SharedPreferences prefs = getSharedPreferences("FemCarePrefs", MODE_PRIVATE);
+        prefs.edit()
+                .putLong("lastPeriodStartMillis", startMillis)
+                .putInt("periodDuration", duration)
+                .apply();
+
+        // 2. Save securely to Firebase and Room!
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user != null && user.getEmail() != null) {
+            authViewModel.updatePeriodData(user.getEmail(), duration, startMillis);
+        }
+
+        // 3. Move to the next screen
+        Intent intent = new Intent(LastPeriodActivity.this, ReproductiveProblemsActivity.class);
+        startActivity(intent);
+        finish();
     }
 }

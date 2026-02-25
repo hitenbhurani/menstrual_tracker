@@ -1,66 +1,183 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FDEEF4"
-    android:padding="24dp">
-
-    <TextView
-        android:id="@+id/settingsTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="40dp"
-        android:text="Settings"
-        android:textColor="#C2185B"
-        android:textSize="28sp"
-        android:textStyle="bold" />
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/settingsTitle"
-        android:layout_marginTop="32dp"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:text="Settings"
+            android:textColor="#1A1A1A"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            app:cardBackgroundColor="#C2185B"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="8dp">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="20dp">
+
+                <ImageView
+                    android:id="@+id/imgProfile"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:layout_centerVertical="true"
+                    android:src="@drawable/ic_profile_avatar" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_marginStart="16dp"
+                    android:layout_toStartOf="@id/btnEditProfile"
+                    android:layout_toEndOf="@id/imgProfile"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvSettingsName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Loading..."
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvSettingsEmail"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="loading@email.com"
+                        android:textColor="#F8BBD0"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:id="@+id/btnEditProfile"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:padding="4dp"
+                    android:src="@android:drawable/ic_menu_edit"
+                    app:tint="#FFFFFF" />
+            </RelativeLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="Cycle Notifications"
+            android:textColor="#1A1A1A"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_toStartOf="@id/switchPeriodAlert" android:layout_marginEnd="16dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Period in a couple of days" android:textColor="#1A1A1A" android:textSize="16sp" />
+                        <TextView android:id="@+id/tvDescPeriod" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Checking your cycle..." android:textColor="#9E9E9E" android:textSize="12sp" />
+                    </LinearLayout>
+                    <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchPeriodAlert" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" android:layout_centerVertical="true" />
+                </RelativeLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="12dp" android:background="#EEEEEE" />
+
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_toStartOf="@id/switchOvulationAlert" android:layout_marginEnd="16dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ovulation Day" android:textColor="#1A1A1A" android:textSize="16sp" />
+                        <TextView android:id="@+id/tvDescOvulation" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Checking your cycle..." android:textColor="#9E9E9E" android:textSize="12sp" />
+                    </LinearLayout>
+                    <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchOvulationAlert" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" android:layout_centerVertical="true" />
+                </RelativeLayout>
+
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="12dp" android:background="#EEEEEE" />
+
+                <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_toStartOf="@id/switchLogAlert" android:layout_marginEnd="16dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Daily Logging Reminder" android:textColor="#1A1A1A" android:textSize="16sp" />
+                        <TextView android:id="@+id/tvDescLog" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="If ON: We'll remind you at 8 PM to track today's symptoms." android:textColor="#9E9E9E" android:textSize="12sp" />
+                    </LinearLayout>
+                    <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchLogAlert" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" android:layout_centerVertical="true" android:checked="true" />
+                </RelativeLayout>
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="Account &amp; Data"
+            android:textColor="#1A1A1A"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView android:id="@+id/btnExportData" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:text="Export Data for Doctor" android:textColor="#1A1A1A" android:textSize="16sp" app:drawableEndCompat="@android:drawable/ic_menu_share" app:drawableTint="#C2185B" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#EEEEEE" />
+                <TextView android:id="@+id/btnPrivacy" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:text="Privacy &amp; Security" android:textColor="#1A1A1A" android:textSize="16sp" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#EEEEEE" />
+                <TextView android:id="@+id/btnHelp" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:text="Help &amp; Support" android:textColor="#1A1A1A" android:textSize="16sp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSignOut"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="match_parent"
-            android:layout_height="65dp"
-            android:layout_marginBottom="12dp"
-            android:gravity="center_vertical|start"
-            android:paddingStart="24dp"
-            android:text="Account Profile"
-            android:textColor="#000000"
-            app:backgroundTint="#FFFFFF"
+            android:layout_height="60dp"
+            android:layout_marginTop="40dp"
+            android:layout_marginBottom="80dp"
+            android:text="Sign Out"
+            android:textColor="#D32F2F"
+            android:textSize="16sp"
+            android:textStyle="bold"
             app:cornerRadius="12dp"
-            app:strokeColor="#BDBDBD" />
+            app:strokeColor="#D32F2F" />
 
-        <com.google.android.material.button.MaterialButton
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="65dp"
-            android:layout_marginBottom="12dp"
-            android:gravity="center_vertical|start"
-            android:paddingStart="24dp"
-            android:text="Notification Preferences"
-            android:textColor="#000000"
-            app:backgroundTint="#FFFFFF"
-            app:cornerRadius="12dp"
-            app:strokeColor="#BDBDBD" />
-
-        <com.google.android.material.button.MaterialButton
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="65dp"
-            android:layout_marginBottom="12dp"
-            android:gravity="center_vertical|start"
-            android:paddingStart="24dp"
-            android:text="Privacy &amp; Security"
-            android:textColor="#000000"
-            app:backgroundTint="#FFFFFF"
-            app:cornerRadius="12dp"
-            app:strokeColor="#BDBDBD" />
     </LinearLayout>
-
-</RelativeLayout>
+</androidx.core.widget.NestedScrollView>

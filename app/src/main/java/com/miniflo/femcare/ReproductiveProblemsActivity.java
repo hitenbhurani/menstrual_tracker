@@ -8,14 +8,17 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
 import com.google.android.material.button.MaterialButton;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.miniflo.femcare.viewmodel.AuthViewModel;
 
 public class ReproductiveProblemsActivity extends AppCompatActivity {
 
-    // This stores the user's answer. It starts completely empty!
-    String selectedAnswer = "";
-
-    MaterialButton option1, option2, option3, option4;
+    private String selectedAnswer = "";
+    private MaterialButton option1, option2, option3, option4;
+    private AuthViewModel authViewModel;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,6 +28,8 @@ public class ReproductiveProblemsActivity extends AppCompatActivity {
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
         }
+
+        authViewModel = new ViewModelProvider(this).get(AuthViewModel.class);
 
         option1 = findViewById(R.id.option1);
         option2 = findViewById(R.id.option2);
@@ -38,37 +43,41 @@ public class ReproductiveProblemsActivity extends AppCompatActivity {
         option3.setOnClickListener(v -> selectOption(option3, "No, yet I used to"));
         option4.setOnClickListener(v -> selectOption(option4, "Not sure"));
 
-        // --- STRICT VALIDATION LOGIC ---
-        nextButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Check if the answer is still empty
-                if (selectedAnswer.isEmpty()) {
-                    // Block them and show an error
-                    Toast.makeText(ReproductiveProblemsActivity.this, "Please select an option to continue.", Toast.LENGTH_LONG).show();
-                } else {
-                    // Allow them to pass
-                    Intent intent = new Intent(ReproductiveProblemsActivity.this, UneasinessActivity.class);
-                    startActivity(intent);
-                }
+        // --- STRICT VALIDATION & DB SAVE LOGIC ---
+        nextButton.setOnClickListener(v -> {
+            if (selectedAnswer.isEmpty()) {
+                Toast.makeText(ReproductiveProblemsActivity.this, "Please select an option to continue.", Toast.LENGTH_LONG).show();
+                return;
             }
+
+            // Determine the boolean flag based on their answer
+            boolean hasProblem = selectedAnswer.equals("Yes") || selectedAnswer.equals("No, yet I used to");
+
+            // Save securely to Firebase and Room
+            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+            if (user != null && user.getEmail() != null) {
+                authViewModel.updateReproductiveHealth(user.getEmail(), hasProblem);
+            }
+
+            // Move to the Lifestyle screen!
+            Intent intent = new Intent(ReproductiveProblemsActivity.this, LifestyleActivity.class);
+            startActivity(intent);
+            finish();
         });
     }
 
-    // This custom function handles the visual color changing
+    // Custom function handles the visual color changing
     private void selectOption(MaterialButton selectedButton, String answer) {
-        // 1. Save the answer
         selectedAnswer = answer;
 
-        // 2. Reset ALL buttons to white with a gray outline
         resetButtonVisuals(option1);
         resetButtonVisuals(option2);
         resetButtonVisuals(option3);
         resetButtonVisuals(option4);
 
-        // 3. Highlight ONLY the clicked button with Figma Pink
-        selectedButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F8BBD0"))); // Light pink background
-        selectedButton.setStrokeColor(ColorStateList.valueOf(Color.parseColor("#F8BBD0"))); // Remove gray border
+        // Highlight ONLY the clicked button with Figma Pink
+        selectedButton.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#F8BBD0")));
+        selectedButton.setStrokeColor(ColorStateList.valueOf(Color.parseColor("#F8BBD0")));
     }
 
     // Helper function to reset buttons back to normal

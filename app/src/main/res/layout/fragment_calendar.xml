@@ -1,35 +1,98 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FDEEF4"
-    android:padding="24dp">
+    android:padding="16dp">
+
+    <ImageView
+        android:id="@+id/btnPrevMonth"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginTop="32dp"
+        android:padding="8dp"
+        android:src="@android:drawable/ic_media_previous"
+        app:tint="#C2185B"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
-        android:id="@+id/calendarTitle"
+        android:id="@+id/tvMonthYear"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="40dp"
-        android:text="Your Cycle Calendar"
-        android:textColor="#C2185B"
-        android:textSize="28sp"
-        android:textStyle="bold" />
+        android:text="April 2026"
+        android:textColor="#1A1A1A"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="@id/btnPrevMonth"
+        app:layout_constraintEnd_toStartOf="@id/btnNextMonth"
+        app:layout_constraintStart_toEndOf="@id/btnPrevMonth"
+        app:layout_constraintTop_toTopOf="@id/btnPrevMonth" />
 
-    <androidx.cardview.widget.CardView
+    <ImageView
+        android:id="@+id/btnNextMonth"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:padding="8dp"
+        android:src="@android:drawable/ic_media_next"
+        app:tint="#C2185B"
+        app:layout_constraintBottom_toBottomOf="@id/btnPrevMonth"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/btnPrevMonth" />
+
+    <LinearLayout
+        android:id="@+id/llDaysOfWeek"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/calendarTitle"
         android:layout_marginTop="24dp"
-        app:cardBackgroundColor="#FFFFFF"
-        app:cardCornerRadius="16dp"
-        app:cardElevation="8dp">
+        android:orientation="horizontal"
+        android:weightSum="7"
+        app:layout_constraintTop_toBottomOf="@id/tvMonthYear">
 
-        <CalendarView
-            android:id="@+id/mainCalendarView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp" />
-    </androidx.cardview.widget.CardView>
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="S" android:textColor="#757575" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="M" android:textColor="#757575" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="T" android:textColor="#757575" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="W" android:textColor="#757575" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="T" android:textColor="#757575" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="F" android:textColor="#757575" />
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="S" android:textColor="#757575" />
+    </LinearLayout>
 
-</RelativeLayout>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/calendarRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:layout_constraintTop_toBottomOf="@id/llDaysOfWeek" />
+
+    <GridLayout
+        android:id="@+id/legendGrid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:alignmentMode="alignBounds"
+        android:columnCount="2"
+        android:rowCount="2"
+        app:layout_constraintTop_toBottomOf="@id/calendarRecyclerView">
+
+        <TextView android:id="@+id/legPeriod" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_rowWeight="1" android:layout_columnWeight="1" android:drawablePadding="8dp" android:text="Period" />
+        <TextView android:id="@+id/legExpected" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_rowWeight="1" android:layout_columnWeight="1" android:drawablePadding="8dp" android:text="Expected Period" />
+        <TextView android:id="@+id/legOvulation" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_rowWeight="1" android:layout_columnWeight="1" android:layout_marginTop="16dp" android:drawablePadding="8dp" android:text="Ovulation" />
+        <TextView android:id="@+id/legFertile" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_rowWeight="1" android:layout_columnWeight="1" android:layout_marginTop="16dp" android:drawablePadding="8dp" android:text="Fertile Window" />
+    </GridLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnEditDates"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_marginTop="32dp"
+        android:text="Edit period dates"
+        android:textColor="#424242"
+        app:cornerRadius="12dp"
+        app:strokeColor="#FFFFFF"
+        app:backgroundTint="#FFFFFF"
+        app:layout_constraintTop_toBottomOf="@id/legendGrid" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

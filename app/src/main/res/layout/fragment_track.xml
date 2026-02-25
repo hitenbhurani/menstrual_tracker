@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FDEEF4"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/tvTrackDateHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Today"
+            android:textColor="#1A1A1A"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardBackgroundColor="#F8BBD0"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:strokeColor="#C2185B"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="16dp">
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@android:drawable/ic_dialog_info"
+                    app:tint="#C2185B" />
+
+                <TextView
+                    android:id="@+id/tvDailyInsightTrack"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="Loading your personalized tip..."
+                    android:textColor="#C2185B"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:id="@+id/weekStripLayoutTrack"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:padding="16dp"
+                android:weightSum="7" />
+        </androidx.cardview.widget.CardView>
+
+        <!-- TRENDS GRAPH SECTION -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="Symptom Trends (Last 7 Days)"
+            android:textColor="#1A1A1A"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:layout_marginTop="16dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp">
+
+            <com.github.mikephil.charting.charts.BarChart
+                android:id="@+id/symptomTrendChart"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_margin="12dp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="32dp" android:text="My Cycle" android:textColor="#1A1A1A" android:textSize="18sp" android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/periodEndsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_symptom_unselected"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Period ends today"
+                    android:textColor="#1A1A1A"
+                    android:textSize="16sp" />
+            </LinearLayout>
+
+            <CheckBox
+                android:id="@+id/cbPeriodEnds"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:buttonTint="#C2185B"
+                android:clickable="false" />
+        </LinearLayout>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="32dp" android:text="Physical Symptoms" android:textColor="#1A1A1A" android:textSize="18sp" android:textStyle="bold" />
+        <GridLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:columnCount="3" android:useDefaultMargins="true">
+            <TextView android:id="@+id/sympCramps" style="@style/TrackerChip" android:text="Cramps" />
+            <TextView android:id="@+id/sympBackache" style="@style/TrackerChip" android:text="Backache" />
+            <TextView android:id="@+id/sympBloating" style="@style/TrackerChip" android:text="Bloating" />
+            <TextView android:id="@+id/sympFatigue" style="@style/TrackerChip" android:text="Fatigue" />
+            <TextView android:id="@+id/sympHeadache" style="@style/TrackerChip" android:text="Headache" />
+            <TextView android:id="@+id/sympTender" style="@style/TrackerChip" android:text="Tender Breasts" />
+            <TextView android:id="@+id/sympAcne" style="@style/TrackerChip" android:text="Acne" />
+            <TextView android:id="@+id/sympSpotting" style="@style/TrackerChip" android:text="Spotting" />
+            <TextView android:id="@+id/sympNoMore" style="@style/TrackerChip" android:text="Nausea" />
+        </GridLayout>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="Mood" android:textColor="#1A1A1A" android:textSize="18sp" android:textStyle="bold" />
+        <GridLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:columnCount="3" android:useDefaultMargins="true">
+            <TextView android:id="@+id/moodCalm" style="@style/TrackerChip" android:text="Calm" />
+            <TextView android:id="@+id/moodHappy" style="@style/TrackerChip" android:text="Happy" />
+            <TextView android:id="@+id/moodSad" style="@style/TrackerChip" android:text="Sad" />
+            <TextView android:id="@+id/moodAnxious" style="@style/TrackerChip" android:text="Anxious" />
+            <TextView android:id="@+id/moodSwings" style="@style/TrackerChip" android:text="Mood Swings" />
+            <TextView android:id="@+id/moodIrritable" style="@style/TrackerChip" android:text="Irritable" />
+            <TextView android:id="@+id/moodApathetic" style="@style/TrackerChip" android:text="Apathetic" />
+            <TextView android:id="@+id/moodSensitive" style="@style/TrackerChip" android:text="Sensitive" />
+        </GridLayout>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="Vaginal Discharge" android:textColor="#1A1A1A" android:textSize="18sp" android:textStyle="bold" />
+        <GridLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:columnCount="3" android:useDefaultMargins="true">
+            <TextView android:id="@+id/disDry" style="@style/TrackerChip" android:text="Dry" />
+            <TextView android:id="@+id/disSticky" style="@style/TrackerChip" android:text="Sticky" />
+            <TextView android:id="@+id/disCreamy" style="@style/TrackerChip" android:text="Creamy" />
+            <TextView android:id="@+id/disEggwhite" style="@style/TrackerChip" android:text="Eggwhite" />
+            <TextView android:id="@+id/disWatery" style="@style/TrackerChip" android:text="Watery" />
+        </GridLayout>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="Energy" android:textColor="#1A1A1A" android:textSize="18sp" android:textStyle="bold" />
+        <GridLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:columnCount="3" android:useDefaultMargins="true">
+            <TextView android:id="@+id/enHigh" style="@style/TrackerChip" android:text="Energized" />
+            <TextView android:id="@+id/enNormal" style="@style/TrackerChip" android:text="Normal" />
+            <TextView android:id="@+id/enExhausted" style="@style/TrackerChip" android:text="Exhausted" />
+        </GridLayout>
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="24dp" android:text="Water Intake (Glasses)" android:textColor="#1A1A1A" android:textSize="18sp" android:textStyle="bold" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnWaterMinus"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:text="-"
+                android:textSize="24sp"
+                app:cornerRadius="30dp"
+                app:strokeColor="#BDBDBD" />
+
+            <TextView
+                android:id="@+id/tvWaterCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="32dp"
+                android:text="0"
+                android:textColor="#C2185B"
+                android:textSize="32sp"
+                android:textStyle="bold" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnWaterPlus"
+                android:layout_width="60dp"
+                android:layout_height="60dp"
+                android:text="+"
+                android:textSize="24sp"
+                app:backgroundTint="#C2185B"
+                app:cornerRadius="30dp" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSaveDailyLog"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:layout_marginTop="32dp"
+            android:backgroundTint="#C2185B"
+            android:text="Save Daily Log"
+            android:textSize="18sp"
+            app:cornerRadius="12dp" />
+
+        <View android:layout_width="match_parent" android:layout_height="2dp" android:layout_marginTop="40dp" android:background="#E0E0E0" />
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp">
+
+            <TextView
+                android:id="@+id/historyTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tracking History"
+                android:textColor="#C2185B"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/historyTitle"
+                android:layout_marginTop="4dp"
+                android:text="Long press dates to view logs"
+                android:textColor="#757575"
+                android:textSize="14sp" />
+
+            <ImageView android:id="@+id/btnHistPrev" android:layout_width="32dp" android:layout_height="32dp" android:layout_toStartOf="@id/tvHistMonth" android:padding="4dp" android:src="@android:drawable/ic_media_previous" app:tint="#C2185B" />
+            <TextView android:id="@+id/tvHistMonth" android:layout_width="100dp" android:layout_height="wrap_content" android:layout_toStartOf="@id/btnHistNext" android:gravity="center" android:text="April 2026" android:textColor="#1A1A1A" android:textStyle="bold" />
+            <ImageView android:id="@+id/btnHistNext" android:layout_width="32dp" android:layout_height="32dp" android:layout_alignParentEnd="true" android:padding="4dp" android:src="@android:drawable/ic_media_next" app:tint="#C2185B" />
+        </RelativeLayout>
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="80dp"
+            app:cardBackgroundColor="#FFFFFF"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="4dp">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/historyCalendarGrid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp" />
+        </androidx.cardview.widget.CardView>
+
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

@@ -1,18 +1,16 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
     <style name="Base.Theme.FemCare" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <!-- Main theme colors. -->
         <item name="colorPrimary">#C2185B</item>
         <item name="colorPrimaryVariant">#880E4F</item>
         <item name="colorOnPrimary">#FFFFFF</item>
-        <!-- Secondary brand color. -->
         <item name="colorSecondary">#E91E63</item>
         <item name="colorSecondaryVariant">#F06292</item>
         <item name="colorOnSecondary">#FFFFFF</item>
-        <!-- Status bar color. -->
         <item name="android:statusBarColor">#C2185B</item>
-        <!-- Background colors -->
         <item name="android:windowBackground">#FDEEF4</item>
+
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">#FCE4EC</item>
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/invisible_icon</item>
     </style>
 
     <style name="Theme.FemCare" parent="Base.Theme.FemCare" />

@@ -3,6 +3,8 @@ package com.miniflo.femcare;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -210,85 +212,237 @@ public class SettingsFragment extends Fragment {
 
     private void createDetailedPdfReport(DocumentSnapshot userDoc, com.google.firebase.firestore.QuerySnapshot logs) {
         PdfDocument pdfDocument = new PdfDocument();
-        // A4 Size is 595 x 842
-        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(595, 842, 1).create();
-        PdfDocument.Page page = pdfDocument.startPage(pageInfo);
-
-        Canvas canvas = page.getCanvas();
         Paint paint = new Paint();
         paint.setAntiAlias(true);
 
-        int y = 40;
-        int x = 40;
+        // Constants for layout
+        final int PAGE_WIDTH = 595;
+        final int PAGE_HEIGHT = 842;
+        final int MARGIN = 40;
+        final int COLUMN_2_X = 300;
+        final int TABLE_X_DATE = 40;
+        final int TABLE_X_CYCLE_DAY = 140;
+        final int TABLE_X_SYMPTOMS = 200;
+        final int TABLE_X_MOOD = 380;
+        final int TABLE_X_WATER = 510;
 
-        // Title
-        paint.setTextSize(18f);
-        paint.setFakeBoldText(true);
-        canvas.drawText("FemCare: Detailed Health & Cycle Report", x, y, paint);
-        y += 40;
-
-        // User Info Section
-        paint.setTextSize(12f);
-        paint.setFakeBoldText(true);
-        canvas.drawText("User Information", x, y, paint);
-        y += 20;
-        paint.setFakeBoldText(false);
-        canvas.drawText("Name: " + userDoc.getString("name"), x, y, paint);
-        y += 15;
-        canvas.drawText("Email: " + userDoc.getId(), x, y, paint);
-        y += 15;
-        canvas.drawText("Average Cycle Length: " + userDoc.getLong("averageCycleLength") + " days", x, y, paint);
-        y += 15;
-        canvas.drawText("Typical Period Duration: " + userDoc.getLong("periodDuration") + " days", x, y, paint);
-        y += 40;
-
-        // Logs Section
-        paint.setFakeBoldText(true);
-        canvas.drawText("Daily Tracking History (Last 30 Days)", x, y, paint);
-        y += 20;
-        paint.setFakeBoldText(false);
-        paint.setTextSize(10f);
-
-        if (logs.isEmpty()) {
-            canvas.drawText("No daily logs found for the past 30 days.", x, y, paint);
-        } else {
-            for (QueryDocumentSnapshot logDoc : logs) {
-                if (y > 780) { // Check for page end
-                    pdfDocument.finishPage(page);
-                    pageInfo = new PdfDocument.PageInfo.Builder(595, 842, pdfDocument.getPages().size() + 1).create();
-                    page = pdfDocument.startPage(pageInfo);
-                    canvas = page.getCanvas();
-                    y = 40;
+        // 1. Calculate Trends Summarizer
+        Map<String, Integer> symptomCounts = new HashMap<>();
+        int totalWater = 0;
+        int logCount = 0;
+        for (QueryDocumentSnapshot log : logs) {
+            List<String> traits = (List<String>) log.get("loggedTraits");
+            if (traits != null) {
+                for (String trait : traits) {
+                    symptomCounts.put(trait, symptomCounts.getOrDefault(trait, 0) + 1);
                 }
-
-                String date = logDoc.getId(); // Format: yyyy-MM-dd
-                List<String> traits = (List<String>) logDoc.get("loggedTraits");
-                Long water = logDoc.getLong("waterGlasses");
-
-                String logEntry = "• " + date + ": " + (traits != null ? String.join(", ", traits) : "No traits") + 
-                                  " | Water: " + (water != null ? water : 0) + " glasses";
-                
-                canvas.drawText(logEntry, x, y, paint);
-                y += 15;
             }
+            Long water = log.getLong("waterGlasses");
+            if (water != null) totalWater += water;
+            logCount++;
+        }
+        double avgWater = logCount > 0 ? (double) totalWater / logCount : 0;
+        List<Map.Entry<String, Integer>> sortedSymptoms = new ArrayList<>(symptomCounts.entrySet());
+        sortedSymptoms.sort((e1, e2) -> e2.getValue().compareTo(e1.getValue()));
+        StringBuilder topSymptomsStr = new StringBuilder();
+        for (int i = 0; i < Math.min(3, sortedSymptoms.size()); i++) {
+            if (i > 0) topSymptomsStr.append(", ");
+            topSymptomsStr.append(sortedSymptoms.get(i).getKey()).append(" (").append(sortedSymptoms.get(i).getValue()).append(")");
         }
 
-        y += 40;
+        // Setup Page 1
+        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create();
+        PdfDocument.Page page = pdfDocument.startPage(pageInfo);
+        Canvas canvas = page.getCanvas();
+        int currentY = 60;
+
+        // Background Watermark Setup (Alpha: 60)
+        drawWatermark(canvas, paint, PAGE_WIDTH, PAGE_HEIGHT, 60);
+
+        // Part 1: Header
+        paint.setColor(Color.parseColor("#C2185B"));
+        paint.setTextSize(18f);
+        paint.setFakeBoldText(true);
+        canvas.drawText("FemCare Health & Cycle Report", MARGIN, currentY, paint);
+        currentY += 10;
+        paint.setStrokeWidth(2f);
+        canvas.drawLine(MARGIN, currentY, PAGE_WIDTH - MARGIN, currentY, paint);
+        currentY += 30;
+
+        // Part 2: Personal Medical Profile
+        paint.setColor(Color.BLACK);
+        paint.setTextSize(12f);
+        paint.setFakeBoldText(true);
+        canvas.drawText("Personal Medical Profile", MARGIN, currentY, paint);
+        canvas.drawText("Cycle Intelligence Statistics", COLUMN_2_X, currentY, paint);
+        currentY += 20;
+
+        paint.setFakeBoldText(false);
+        String name = userDoc.getString("name");
+        String email = userDoc.getId();
+        Long height = userDoc.getLong("heightCm");
+        Object weightObj = userDoc.get("weightKg");
+        Double bmi = userDoc.getDouble("bmi");
+        Boolean birthControl = userDoc.getBoolean("onBirthControl");
+        Boolean isRegular = userDoc.getBoolean("isRegular");
+        Long stressLevel = userDoc.getLong("stressLevel");
+
+        canvas.drawText("Full Name: " + (name != null ? name : "N/A"), MARGIN, currentY, paint);
+        canvas.drawText("Avg Cycle Length: " + userDoc.getLong("averageCycleLength") + " days", COLUMN_2_X, currentY, paint);
+        currentY += 15;
+        canvas.drawText("Account Email: " + email, MARGIN, currentY, paint);
+        canvas.drawText("Avg Period Duration: " + userDoc.getLong("periodDuration") + " days", COLUMN_2_X, currentY, paint);
+        currentY += 15;
+        canvas.drawText("Height: " + (height != null ? height + " cm" : "N/A"), MARGIN, currentY, paint);
+        canvas.drawText("Cycle Regularity: " + (isRegular != null ? (isRegular ? "Regular" : "Irregular") : "N/A"), COLUMN_2_X, currentY, paint);
+        currentY += 15;
+        canvas.drawText("Current Weight: " + (weightObj != null ? weightObj + " kg" : "N/A"), MARGIN, currentY, paint);
+        canvas.drawText("On Birth Control: " + (birthControl != null ? (birthControl ? "Yes" : "No") : "N/A"), COLUMN_2_X, currentY, paint);
+        currentY += 15;
+        canvas.drawText("Calculated BMI: " + (bmi != null ? String.format(Locale.getDefault(), "%.2f", bmi) : "N/A"), MARGIN, currentY, paint);
+        canvas.drawText("Reported Stress: " + (stressLevel != null ? stressLevel + "/5" : "N/A"), COLUMN_2_X, currentY, paint);
+        currentY += 40;
+
+        // Part 3: Clinical Observation Summary (Structured Format)
+        paint.setFakeBoldText(true);
+        paint.setTextSize(13f);
+        paint.setColor(Color.parseColor("#C2185B"));
+        canvas.drawText("CLINICAL OBSERVATION SUMMARY", MARGIN, currentY, paint);
+        currentY += 20;
+
+        paint.setTextSize(11f);
+        paint.setColor(Color.BLACK);
+        paint.setFakeBoldText(true);
+        canvas.drawText("Symptom Prevalence:", MARGIN, currentY, paint);
+        paint.setFakeBoldText(false);
+        canvas.drawText(topSymptomsStr.length() > 0 ? topSymptomsStr.toString() : "None identified", MARGIN + 130, currentY, paint);
+        currentY += 18;
+
+        paint.setFakeBoldText(true);
+        canvas.drawText("Hydration Index:", MARGIN, currentY, paint);
+        paint.setFakeBoldText(false);
+        canvas.drawText(String.format(Locale.getDefault(), "%.1f glasses / day (Average)", avgWater), MARGIN + 130, currentY, paint);
+        currentY += 18;
+
+        paint.setFakeBoldText(true);
+        canvas.drawText("Data Consistency:", MARGIN, currentY, paint);
+        paint.setFakeBoldText(false);
+        canvas.drawText(logCount + " entries recorded in last 30-day window", MARGIN + 130, currentY, paint);
+        currentY += 18;
+
+        paint.setFakeBoldText(true);
+        canvas.drawText("Overall Assessment:", MARGIN, currentY, paint);
+        paint.setFakeBoldText(false);
+        String assessment = (logCount > 15) ? "High consistency - reliable cycle data" : "Moderate consistency - monitoring recommended";
+        canvas.drawText(assessment, MARGIN + 130, currentY, paint);
+        currentY += 45;
+
+        // Part 4: Daily Tracking Log Table
+        paint.setFakeBoldText(true);
+        paint.setTextSize(12f);
+        paint.setColor(Color.BLACK);
+        canvas.drawText("DAILY TRACKING LOG", MARGIN, currentY, paint);
+        currentY += 15;
+
+        drawTableHeader(canvas, paint, currentY, PAGE_WIDTH, MARGIN, TABLE_X_DATE, TABLE_X_CYCLE_DAY, TABLE_X_SYMPTOMS, TABLE_X_MOOD, TABLE_X_WATER);
+        currentY += 25;
+
+        long lastPeriodMillis = userDoc.contains("lastPeriodStartMillis") ? userDoc.getLong("lastPeriodStartMillis") : 0;
+        int cycleLengthVal = userDoc.contains("averageCycleLength") ? userDoc.getLong("averageCycleLength").intValue() : 28;
+
+        paint.setTextSize(10f);
+        for (QueryDocumentSnapshot log : logs) {
+            if (currentY > 780) {
+                pdfDocument.finishPage(page);
+                pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, pdfDocument.getPages().size() + 1).create();
+                page = pdfDocument.startPage(pageInfo);
+                canvas = page.getCanvas();
+                drawWatermark(canvas, paint, PAGE_WIDTH, PAGE_HEIGHT, 60);
+                currentY = 60;
+                drawTableHeader(canvas, paint, currentY, PAGE_WIDTH, MARGIN, TABLE_X_DATE, TABLE_X_CYCLE_DAY, TABLE_X_SYMPTOMS, TABLE_X_MOOD, TABLE_X_WATER);
+                currentY += 25;
+                paint.setTextSize(10f);
+            }
+
+            String date = log.getId();
+            String cycleDayStr = "N/A";
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                Calendar logCal = Calendar.getInstance();
+                logCal.setTime(sdf.parse(date));
+                if (lastPeriodMillis > 0) {
+                    long diff = logCal.getTimeInMillis() - lastPeriodMillis;
+                    int daysDiff = (int) (diff / (1000 * 60 * 60 * 24));
+                    int cd = (daysDiff % cycleLengthVal);
+                    if (cd < 0) cd += cycleLengthVal;
+                    cycleDayStr = String.valueOf(cd + 1);
+                }
+            } catch (Exception e) {}
+
+            List<String> traits = (List<String>) log.get("loggedTraits");
+            String symptoms = traits != null ? String.join(", ", traits) : "";
+            if (symptoms.length() > 30) symptoms = symptoms.substring(0, 27) + "...";
+
+            String mood = log.getString("mood");
+            String discharge = log.getString("discharge");
+            String moodDischarge = (mood != null ? mood : "") + (mood != null && discharge != null ? "/" : "") + (discharge != null ? discharge : "");
+            if (moodDischarge.length() > 20) moodDischarge = moodDischarge.substring(0, 17) + "...";
+
+            Long water = log.getLong("waterGlasses");
+
+            canvas.drawText(date, TABLE_X_DATE, currentY, paint);
+            canvas.drawText(cycleDayStr, TABLE_X_CYCLE_DAY, currentY, paint);
+            canvas.drawText(symptoms, TABLE_X_SYMPTOMS, currentY, paint);
+            canvas.drawText(moodDischarge, TABLE_X_MOOD, currentY, paint);
+            canvas.drawText(String.valueOf(water != null ? water : 0), TABLE_X_WATER, currentY, paint);
+            
+            currentY += 20;
+        }
+
+        // Part 5: Medical Footer
         paint.setTextSize(8f);
         paint.setColor(Color.GRAY);
-        canvas.drawText("Confidential: This report contains sensitive health data for medical analysis only.", x, y, paint);
+        paint.setFakeBoldText(false);
+        paint.setTextSkewX(-0.25f);
+        canvas.drawText("Confidential Medical Data. Automatically generated via FemCare. Not a clinical diagnosis.", MARGIN, 820, paint);
+        paint.setTextSkewX(0);
 
         pdfDocument.finishPage(page);
 
-        File file = new File(requireContext().getExternalFilesDir(null), "FemCare_Detailed_Report.pdf");
+        File file = new File(requireContext().getExternalFilesDir(null), "FemCare_Medical_Report.pdf");
         try {
             pdfDocument.writeTo(new FileOutputStream(file));
             pdfDocument.close();
             shareFile(file);
         } catch (IOException e) {
             e.printStackTrace();
-            Toast.makeText(getContext(), "Error generating Detailed PDF", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "Error generating medical PDF", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private void drawWatermark(Canvas canvas, Paint paint, int width, int height, int alpha) {
+        Bitmap logo = BitmapFactory.decodeResource(getResources(), R.drawable.logo
+        );
+        if (logo != null) {
+            Bitmap scaledLogo = Bitmap.createScaledBitmap(logo, 300, 300, true);
+            paint.setAlpha(alpha);
+            canvas.drawBitmap(scaledLogo, (width - 300) / 2f, (height - 300) / 2f, paint);
+            paint.setAlpha(255);
+        }
+    }
+
+    private void drawTableHeader(Canvas canvas, Paint paint, int y, int width, int margin, int x1, int x2, int x3, int x4, int x5) {
+        paint.setColor(Color.LTGRAY);
+        canvas.drawRect(margin, y - 15, width - margin, y + 10, paint);
+        paint.setColor(Color.BLACK);
+        paint.setFakeBoldText(true);
+        paint.setTextSize(10f);
+        canvas.drawText("Date", x1, y, paint);
+        canvas.drawText("Cycle Day", x2, y, paint);
+        canvas.drawText("Symptoms", x3, y, paint);
+        canvas.drawText("Mood/Discharge", x4, y, paint);
+        canvas.drawText("Water", x5, y, paint);
+        paint.setFakeBoldText(false);
     }
 
     private void shareFile(File file) {

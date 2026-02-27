@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FDEEF4"
+    android:background="@color/app_background"
     android:fillViewport="true">
 
     <LinearLayout
@@ -18,7 +18,7 @@
             android:layout_marginTop="16dp"
             android:gravity="center"
             android:text="Settings"
-            android:textColor="#1A1A1A"
+            android:textColor="@color/text_primary"
             android:textSize="22sp"
             android:textStyle="bold" />
 
@@ -26,7 +26,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            app:cardBackgroundColor="#C2185B"
+            app:cardBackgroundColor="@color/brand_primary"
             app:cardCornerRadius="16dp"
             app:cardElevation="8dp">
 
@@ -56,7 +56,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Loading..."
-                        android:textColor="#FFFFFF"
+                        android:textColor="@color/on_brand_primary"
                         android:textSize="18sp"
                         android:textStyle="bold" />
 
@@ -77,7 +77,50 @@
                     android:layout_centerVertical="true"
                     android:padding="4dp"
                     android:src="@android:drawable/ic_menu_edit"
-                    app:tint="#FFFFFF" />
+                    app:tint="@color/on_brand_primary" />
+            </RelativeLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Appearance Section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="Appearance"
+            android:textColor="@color/text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:cardBackgroundColor="@color/card_background"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="2dp">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerVertical="true"
+                    android:layout_toStartOf="@+id/switchDarkMode"
+                    android:layout_alignParentStart="true"
+                    android:text="Enable Dark Mode"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchDarkMode"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true" />
+
             </RelativeLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -86,7 +129,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
             android:text="Cycle Notifications"
-            android:textColor="#1A1A1A"
+            android:textColor="@color/text_primary"
             android:textSize="18sp"
             android:textStyle="bold" />
 
@@ -94,7 +137,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            app:cardBackgroundColor="#FFFFFF"
+            app:cardBackgroundColor="@color/card_background"
             app:cardCornerRadius="16dp"
             app:cardElevation="2dp">
 
@@ -106,28 +149,28 @@
 
                 <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content">
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_toStartOf="@id/switchPeriodAlert" android:layout_marginEnd="16dp">
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Period in a couple of days" android:textColor="#1A1A1A" android:textSize="16sp" />
-                        <TextView android:id="@+id/tvDescPeriod" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Checking your cycle..." android:textColor="#9E9E9E" android:textSize="12sp" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Period in a couple of days" android:textColor="@color/text_primary" android:textSize="16sp" />
+                        <TextView android:id="@+id/tvDescPeriod" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Checking your cycle..." android:textColor="@color/text_secondary" android:textSize="12sp" />
                     </LinearLayout>
                     <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchPeriodAlert" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" android:layout_centerVertical="true" />
                 </RelativeLayout>
 
-                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="12dp" android:background="#EEEEEE" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="12dp" android:background="@color/divider_color" />
 
                 <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content">
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_toStartOf="@id/switchOvulationAlert" android:layout_marginEnd="16dp">
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ovulation Day" android:textColor="#1A1A1A" android:textSize="16sp" />
-                        <TextView android:id="@+id/tvDescOvulation" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Checking your cycle..." android:textColor="#9E9E9E" android:textSize="12sp" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ovulation Day" android:textColor="@color/text_primary" android:textSize="16sp" />
+                        <TextView android:id="@+id/tvDescOvulation" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Checking your cycle..." android:textColor="@color/text_secondary" android:textSize="12sp" />
                     </LinearLayout>
                     <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchOvulationAlert" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" android:layout_centerVertical="true" />
                 </RelativeLayout>
 
-                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="12dp" android:background="#EEEEEE" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="12dp" android:background="@color/divider_color" />
 
                 <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content">
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_toStartOf="@id/switchLogAlert" android:layout_marginEnd="16dp">
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Daily Logging Reminder" android:textColor="#1A1A1A" android:textSize="16sp" />
-                        <TextView android:id="@+id/tvDescLog" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="If ON: We'll remind you at 8 PM to track today's symptoms." android:textColor="#9E9E9E" android:textSize="12sp" />
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Daily Logging Reminder" android:textColor="@color/text_primary" android:textSize="16sp" />
+                        <TextView android:id="@+id/tvDescLog" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="If ON: We'll remind you at 8 PM to track today's symptoms." android:textColor="@color/text_secondary" android:textSize="12sp" />
                     </LinearLayout>
                     <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/switchLogAlert" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_alignParentEnd="true" android:layout_centerVertical="true" android:checked="true" />
                 </RelativeLayout>
@@ -140,7 +183,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
             android:text="Account &amp; Data"
-            android:textColor="#1A1A1A"
+            android:textColor="@color/text_primary"
             android:textSize="18sp"
             android:textStyle="bold" />
 
@@ -148,7 +191,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            app:cardBackgroundColor="#FFFFFF"
+            app:cardBackgroundColor="@color/card_background"
             app:cardCornerRadius="16dp"
             app:cardElevation="2dp">
 
@@ -157,11 +200,11 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
-                <TextView android:id="@+id/btnExportData" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:text="Export Data for Doctor" android:textColor="#1A1A1A" android:textSize="16sp" app:drawableEndCompat="@android:drawable/ic_menu_share" app:drawableTint="#C2185B" />
-                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#EEEEEE" />
-                <TextView android:id="@+id/btnPrivacy" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:text="Privacy &amp; Security" android:textColor="#1A1A1A" android:textSize="16sp" />
-                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#EEEEEE" />
-                <TextView android:id="@+id/btnHelp" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:text="Help &amp; Support" android:textColor="#1A1A1A" android:textSize="16sp" />
+                <TextView android:id="@+id/btnExportData" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:text="Export Data for Doctor" android:textColor="@color/text_primary" android:textSize="16sp" app:drawableEndCompat="@android:drawable/ic_menu_share" app:drawableTint="@color/brand_primary" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider_color" />
+                <TextView android:id="@+id/btnPrivacy" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:text="Privacy &amp; Security" android:textColor="@color/text_primary" android:textSize="16sp" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider_color" />
+                <TextView android:id="@+id/btnHelp" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:text="Help &amp; Support" android:textColor="@color/text_primary" android:textSize="16sp" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

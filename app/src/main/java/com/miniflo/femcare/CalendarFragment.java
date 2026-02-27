@@ -1,5 +1,6 @@
 package com.miniflo.femcare;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -13,6 +14,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -73,14 +75,11 @@ public class CalendarFragment extends Fragment {
         fetchUserData();
         fetchRecentNotes();
 
-        // Button Clicks
         btnPrev.setOnClickListener(v -> changeMonth(-1));
         btnNext.setOnClickListener(v -> changeMonth(1));
 
-        // Connect the "Edit Period Dates" button to our new Bottom Sheet
         view.findViewById(R.id.btnEditDates).setOnClickListener(v -> openEditPeriodBottomSheet());
 
-        // --- THE SWIPE GESTURES ---
         setupSwipeGestures();
 
         return view;
@@ -102,9 +101,9 @@ public class CalendarFragment extends Fragment {
                 if (Math.abs(diffX) > Math.abs(e2.getY() - e1.getY())) {
                     if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
                         if (diffX > 0) {
-                            changeMonth(-1); // Swipe Right -> Previous Month
+                            changeMonth(-1);
                         } else {
-                            changeMonth(1);  // Swipe Left -> Next Month
+                            changeMonth(1);
                         }
                         return true;
                     }
@@ -113,14 +112,12 @@ public class CalendarFragment extends Fragment {
             }
         });
 
-        // Set the touch listener on the root view or a container to catch swipes
         View rootView = calendarRecyclerView.getRootView();
         rootView.setOnTouchListener((v, event) -> {
             gestureDetector.onTouchEvent(event);
             return true;
         });
-        
-        // Also ensure the RecyclerView doesn't consume all touch events if you want to swipe on it
+
         calendarRecyclerView.addOnItemTouchListener(new RecyclerView.SimpleOnItemTouchListener() {
             @Override
             public boolean onInterceptTouchEvent(@NonNull RecyclerView rv, @NonNull MotionEvent e) {
@@ -130,7 +127,6 @@ public class CalendarFragment extends Fragment {
         });
     }
 
-    // --- MATH FIX: NORMALIZE TIMESTAMPS TO MIDNIGHT ---
     private long normalizeToMidnight(long timeInMillis) {
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(timeInMillis);
@@ -199,7 +195,6 @@ public class CalendarFragment extends Fragment {
         adapter.setDays(daysInMonth);
     }
 
-    // --- FEATURE 1: EDIT PERIOD DATES LOGIC ---
     private void openEditPeriodBottomSheet() {
         BottomSheetDialog editSheet = new BottomSheetDialog(requireContext());
         View sheetView = getLayoutInflater().inflate(R.layout.bottom_sheet_edit_period, null);
@@ -254,7 +249,7 @@ public class CalendarFragment extends Fragment {
                             Toast.makeText(getContext(), "Cycle updated!", Toast.LENGTH_SHORT).show();
                             lastPeriodMillis = newlySelectedMillis[0];
                             cycleLength = newCycle;
-                            adapter.notifyDataSetChanged(); // Redraw calendar immediately!
+                            adapter.notifyDataSetChanged();
                             editSheet.dismiss();
                         });
             }
@@ -263,7 +258,6 @@ public class CalendarFragment extends Fragment {
         editSheet.show();
     }
 
-    // --- FEATURE 2: SAVE NOTES LOGIC ---
     private void openNoteBottomSheet(Calendar selectedDate, String status) {
         BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(requireContext());
         View sheetView = getLayoutInflater().inflate(R.layout.bottom_sheet_note, null);
@@ -302,7 +296,7 @@ public class CalendarFragment extends Fragment {
                         .set(noteData, SetOptions.merge())
                         .addOnSuccessListener(aVoid -> {
                             Toast.makeText(getContext(), "Note saved securely!", Toast.LENGTH_SHORT).show();
-                            fetchRecentNotes(); // Refresh list
+                            fetchRecentNotes();
                             bottomSheetDialog.dismiss();
                         });
             }
@@ -331,10 +325,11 @@ public class CalendarFragment extends Fragment {
             Calendar cellDate = days.get(position);
             holder.cellDayText.setText(String.valueOf(cellDate.get(Calendar.DAY_OF_MONTH)));
 
+            Context context = holder.itemView.getContext();
             if (cellDate.get(Calendar.MONTH) == currentCalendarDisplay.get(Calendar.MONTH)) {
-                holder.cellDayText.setTextColor(Color.BLACK);
+                holder.cellDayText.setTextColor(ContextCompat.getColor(context, R.color.text_primary));
             } else {
-                holder.cellDayText.setTextColor(Color.parseColor("#757575")); // Darker gray for other months
+                holder.cellDayText.setTextColor(ContextCompat.getColor(context, R.color.text_secondary));
             }
 
             String dayStatus = "No active phase";
@@ -342,6 +337,8 @@ public class CalendarFragment extends Fragment {
 
             if (lastPeriodMillis > 0) {
                 long cellMillis = normalizeToMidnight(cellDate.getTimeInMillis());
+
+                // Infinite Modulo Math - paints predictions correctly into the future AND past!
                 long diffMillis = cellMillis - lastPeriodMillis;
                 int daysDiff = (int) Math.floor(diffMillis / (1000.0 * 60 * 60 * 24));
 
@@ -351,7 +348,7 @@ public class CalendarFragment extends Fragment {
                 }
 
                 if (cycleDay >= 0 && cycleDay < periodDuration) {
-                    if (daysDiff < cycleLength) {
+                    if (daysDiff < cycleLength && daysDiff >= 0) {
                         holder.cellDayText.setBackground(createCircleBg("#C2185B", true));
                         holder.cellDayText.setTextColor(Color.WHITE);
                         dayStatus = "Period Day " + (cycleDay + 1);
@@ -385,7 +382,6 @@ public class CalendarFragment extends Fragment {
         }
     }
 
-    // --- RECENT NOTES ADAPTER ---
     private class NotesAdapter extends RecyclerView.Adapter<NotesAdapter.NoteViewHolder> {
         private List<NoteItem> notes = new ArrayList<>();
 

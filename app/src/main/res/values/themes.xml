@@ -1,16 +1,19 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Base.Theme.FemCare" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <item name="colorPrimary">#C2185B</item>
-        <item name="colorPrimaryVariant">#880E4F</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorSecondary">#E91E63</item>
-        <item name="colorSecondaryVariant">#F06292</item>
-        <item name="colorOnSecondary">#FFFFFF</item>
-        <item name="android:statusBarColor">#C2185B</item>
-        <item name="android:windowBackground">#FDEEF4</item>
+    <!-- Base application theme. -->
+    <style name="Base.Theme.FemCare" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Brand colors -->
+        <item name="colorPrimary">@color/brand_primary</item>
+        <item name="colorOnPrimary">@color/on_brand_primary</item>
+        <item name="colorSecondary">@color/brand_secondary</item>
+        <item name="colorOnSecondary">@color/on_brand_primary</item>
 
-        <item name="android:windowSplashScreenBackground" tools:targetApi="31">#FCE4EC</item>
-        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@drawable/invisible_icon</item>
+        <!-- UI Colors -->
+        <item name="android:windowBackground">@color/app_background</item>
+        <item name="android:statusBarColor">@color/brand_primary</item>
+
+        <!-- Splash screen attributes -->
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">@android:color/transparent</item>
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@android:color/transparent</item>
     </style>
 
     <style name="Theme.FemCare" parent="Base.Theme.FemCare" />
@@ -22,7 +25,7 @@
         <item name="android:gravity">center</item>
         <item name="android:padding">12dp</item>
         <item name="android:textSize">14sp</item>
-        <item name="android:textColor">#1A1A1A</item>
+        <item name="android:textColor">@color/text_primary</item>
         <item name="android:background">@drawable/bg_symptom_unselected</item>
     </style>
 </resources>

@@ -10,6 +10,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -18,11 +19,11 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import com.github.mikephil.charting.charts.BarChart;
+import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.XAxis;
-import com.github.mikephil.charting.data.BarData;
-import com.github.mikephil.charting.data.BarDataSet;
-import com.github.mikephil.charting.data.BarEntry;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.auth.FirebaseAuth;
@@ -45,7 +46,7 @@ public class TrackFragment extends Fragment {
     private LinearLayout weekStripLayoutTrack, periodEndsContainer;
     private CheckBox cbPeriodEnds;
     private RecyclerView historyCalendarGrid;
-    private BarChart symptomTrendChart;
+    private LineChart symptomTrendChart;
 
     private List<TextView> allChips = new ArrayList<>();
     private List<String> selectedLogs = new ArrayList<>();
@@ -56,7 +57,6 @@ public class TrackFragment extends Fragment {
     private long userLastPeriodMillis = 0;
     private int userPeriodDuration = 5;
     private int userCycleLength = 28;
-
     private int waterGlasses = 0;
 
     @Nullable
@@ -71,7 +71,6 @@ public class TrackFragment extends Fragment {
         cbPeriodEnds = view.findViewById(R.id.cbPeriodEnds);
         historyCalendarGrid = view.findViewById(R.id.historyCalendarGrid);
         symptomTrendChart = view.findViewById(R.id.symptomTrendChart);
-
         tvWaterCount = view.findViewById(R.id.tvWaterCount);
         tvHistMonth = view.findViewById(R.id.tvHistMonth);
 
@@ -80,6 +79,13 @@ public class TrackFragment extends Fragment {
 
         setupHeaderAndStrip();
         setupToggleChips(view);
+
+        // Setup the new dynamic "Other" buttons
+        setupCustomChip(view.findViewById(R.id.sympOther), "Symptom");
+        setupCustomChip(view.findViewById(R.id.moodOther), "Mood");
+        setupCustomChip(view.findViewById(R.id.disOther), "Discharge");
+        setupCustomChip(view.findViewById(R.id.enOther), "Energy");
+
         setupWaterTracker(view);
         setupHistoryControls(view);
 
@@ -89,8 +95,132 @@ public class TrackFragment extends Fragment {
         view.findViewById(R.id.btnSaveDailyLog).setOnClickListener(v -> saveDailyLogToDatabase());
 
         setupSwipeGestures();
-
         return view;
+    }
+
+    // --- NEW LOGIC: Dynamic Custom Chips ---
+    private void setupCustomChip(TextView customChip, String categoryPrefix) {
+        if (customChip == null) return;
+
+        customChip.setOnClickListener(v -> {
+            // If it's already selected, unselect it and reset text
+            if (customChip.getBackground().getConstantState().equals(getResources().getDrawable(R.drawable.bg_symptom_selected).getConstantState())) {
+                customChip.setBackgroundResource(R.drawable.bg_symptom_unselected);
+                customChip.setTextColor(Color.parseColor("#C2185B"));
+
+                // Remove the old custom entry from logs
+                selectedLogs.removeIf(log -> log.startsWith(categoryPrefix + ": "));
+                customChip.setText("+ Other");
+                return;
+            }
+
+            // Otherwise, open dialog to let them type their custom value
+            EditText input = new EditText(getContext());
+            input.setHint("Type your custom " + categoryPrefix.toLowerCase());
+
+            new MaterialAlertDialogBuilder(requireContext())
+                    .setTitle("Add Custom " + categoryPrefix)
+                    .setView(input)
+                    .setPositiveButton("Add", (dialog, which) -> {
+                        String customText = input.getText().toString().trim();
+                        if (!customText.isEmpty()) {
+                            // Save to backend list
+                            String formattedEntry = categoryPrefix + ": " + customText;
+                            selectedLogs.add(formattedEntry);
+
+                            // Visually update the chip
+                            customChip.setText(customText);
+                            customChip.setBackgroundResource(R.drawable.bg_symptom_selected);
+                            customChip.setTextColor(Color.BLACK);
+                        }
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
+    }
+
+    private void fetchSymptomTrends() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) return;
+
+        FirebaseFirestore.getInstance().collection("users").document(user.getEmail())
+                .collection("daily_logs").orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(7).get().addOnSuccessListener(queryDocumentSnapshots -> {
+                    List<Entry> entries = new ArrayList<>();
+                    List<String> labels = new ArrayList<>();
+                    int i = 0;
+
+                    List<DocumentSnapshot> docs = queryDocumentSnapshots.getDocuments();
+                    for (int j = docs.size() - 1; j >= 0; j--) {
+                        DocumentSnapshot doc = docs.get(j);
+                        List<String> traits = (List<String>) doc.get("loggedTraits");
+                        int symptomCount = (traits != null) ? traits.size() : 0;
+
+                        entries.add(new Entry(i, symptomCount));
+                        labels.add(doc.getId().substring(5)); // Show MM-DD
+                        i++;
+                    }
+                    setupAestheticGraph(entries, labels);
+                });
+    }
+
+    // --- NEW LOGIC: Highly Aesthetic Gradient Line Chart ---
+    private void setupAestheticGraph(List<Entry> entries, List<String> labels) {
+        if (entries.isEmpty()) {
+            symptomTrendChart.setNoDataText("Log symptoms daily to reveal your intensity trends.");
+            return;
+        }
+
+        LineDataSet dataSet = new LineDataSet(entries, "Intensity");
+
+        // Line styling
+        dataSet.setColor(Color.parseColor("#E91E63"));
+        dataSet.setLineWidth(4f);
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER); // Smooth, swooping curve
+
+        // Circle styling
+        dataSet.setDrawCircles(true);
+        dataSet.setCircleColor(Color.parseColor("#C2185B"));
+        dataSet.setCircleRadius(6f);
+        dataSet.setDrawCircleHole(true);
+        dataSet.setCircleHoleColor(Color.WHITE);
+        dataSet.setDrawValues(false);
+
+        // Beautiful Gradient Fill beneath the curve
+        dataSet.setDrawFilled(true);
+        GradientDrawable gradient = new GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.parseColor("#66F06292"), Color.parseColor("#00F06292")} // Soft pink fading to clear
+        );
+        dataSet.setFillDrawable(gradient);
+
+        LineData lineData = new LineData(dataSet);
+        symptomTrendChart.setData(lineData);
+
+        symptomTrendChart.getDescription().setEnabled(false);
+        symptomTrendChart.getLegend().setEnabled(false);
+        symptomTrendChart.setTouchEnabled(true);
+
+        // Clean X Axis
+        XAxis xAxis = symptomTrendChart.getXAxis();
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setDrawGridLines(false);
+        xAxis.setAxisLineColor(Color.parseColor("#E0E0E0"));
+        xAxis.setTextColor(Color.parseColor("#757575"));
+        xAxis.setGranularity(1f);
+
+        // Clean Y Axes (Remove visual clutter)
+        symptomTrendChart.getAxisLeft().setDrawGridLines(true);
+        symptomTrendChart.getAxisLeft().setGridColor(Color.parseColor("#F5F5F5"));
+        symptomTrendChart.getAxisLeft().setAxisLineColor(Color.TRANSPARENT);
+        symptomTrendChart.getAxisLeft().setTextColor(Color.parseColor("#9E9E9E"));
+        symptomTrendChart.getAxisLeft().setAxisMinimum(0f);
+
+        symptomTrendChart.getAxisRight().setEnabled(false);
+
+        symptomTrendChart.animateX(800);
+        symptomTrendChart.invalidate();
     }
 
     private void setupSwipeGestures() {
@@ -103,11 +233,8 @@ public class TrackFragment extends Fragment {
                 float diffX = e2.getX() - e1.getX();
                 if (Math.abs(diffX) > Math.abs(e2.getY() - e1.getY())) {
                     if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
-                        if (diffX > 0) {
-                            changeHistoryMonth(-1);
-                        } else {
-                            changeHistoryMonth(1);
-                        }
+                        if (diffX > 0) changeHistoryMonth(-1);
+                        else changeHistoryMonth(1);
                         return true;
                     }
                 }
@@ -172,7 +299,7 @@ public class TrackFragment extends Fragment {
                         List<String> combinedTraits = new ArrayList<>();
                         if (traits != null) combinedTraits.addAll(traits);
                         if (water != null) combinedTraits.add("💧 Water: " + water + " glasses");
-                        
+
                         if (!combinedTraits.isEmpty()) {
                             loggedHistoryCache.put(logDoc.getId(), combinedTraits);
                         }
@@ -181,70 +308,20 @@ public class TrackFragment extends Fragment {
                 });
     }
 
-    private void fetchSymptomTrends() {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) return;
-
-        FirebaseFirestore.getInstance().collection("users").document(user.getEmail())
-                .collection("daily_logs")
-                .orderBy("timestamp", Query.Direction.DESCENDING)
-                .limit(7)
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    List<BarEntry> entries = new ArrayList<>();
-                    List<String> labels = new ArrayList<>();
-                    int i = 0;
-                    
-                    // We iterate in reverse to show chronological order on chart
-                    List<DocumentSnapshot> docs = queryDocumentSnapshots.getDocuments();
-                    for (int j = docs.size() - 1; j >= 0; j--) {
-                        DocumentSnapshot doc = docs.get(j);
-                        List<String> traits = (List<String>) doc.get("loggedTraits");
-                        int symptomCount = (traits != null) ? traits.size() : 0;
-                        
-                        entries.add(new BarEntry(i, symptomCount));
-                        String date = doc.getId().substring(5); // Show only MM-DD
-                        labels.add(date);
-                        i++;
-                    }
-                    setupChart(entries, labels);
-                });
-    }
-
-    private void setupChart(List<BarEntry> entries, List<String> labels) {
-        if (entries.isEmpty()) {
-            symptomTrendChart.setNoDataText("Log symptoms to see trends here!");
-            return;
-        }
-
-        BarDataSet dataSet = new BarDataSet(entries, "Symptoms Logged");
-        dataSet.setColor(Color.parseColor("#C2185B"));
-        dataSet.setValueTextColor(Color.BLACK);
-        dataSet.setValueTextSize(10f);
-
-        BarData barData = new BarData(dataSet);
-        symptomTrendChart.setData(barData);
-
-        symptomTrendChart.getDescription().setEnabled(false);
-        symptomTrendChart.getLegend().setEnabled(false);
-        
-        XAxis xAxis = symptomTrendChart.getXAxis();
-        xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
-        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setGranularity(1f);
-        xAxis.setDrawGridLines(false);
-
-        symptomTrendChart.getAxisLeft().setDrawGridLines(false);
-        symptomTrendChart.getAxisRight().setEnabled(false);
-        symptomTrendChart.animateY(1000);
-        symptomTrendChart.invalidate();
-    }
-
     private void enforcePeriodCheckboxLogic() {
         if (userLastPeriodMillis == 0) return;
         Calendar now = Calendar.getInstance();
         now.set(Calendar.HOUR_OF_DAY, 0);
-        long diffMillis = now.getTimeInMillis() - userLastPeriodMillis;
+
+        long cycleMillis = userCycleLength * 24L * 60L * 60L * 1000L;
+        long activeStart = userLastPeriodMillis;
+        long nextP = activeStart + cycleMillis;
+        while (nextP < now.getTimeInMillis()) {
+            activeStart += cycleMillis;
+            nextP = activeStart + cycleMillis;
+        }
+
+        long diffMillis = now.getTimeInMillis() - activeStart;
         int daysDiff = (int) Math.floor(diffMillis / (1000.0 * 60 * 60 * 24));
 
         boolean isCurrentlyBleeding = (daysDiff >= 0 && daysDiff < userPeriodDuration);
@@ -392,7 +469,7 @@ public class TrackFragment extends Fragment {
 
     private void setupToggleChips(View view) {
         int[] chipIds = {
-                R.id.sympCramps, R.id.sympBackache, R.id.sympBloating, R.id.sympFatigue, R.id.sympHeadache, R.id.sympTender, R.id.sympAcne, R.id.sympSpotting,
+                R.id.sympCramps, R.id.sympBackache, R.id.sympBloating, R.id.sympFatigue, R.id.sympHeadache, R.id.sympTender, R.id.sympAcne, R.id.sympSpotting, R.id.sympNausea,
                 R.id.moodCalm, R.id.moodHappy, R.id.moodSad, R.id.moodAnxious, R.id.moodSwings, R.id.moodIrritable, R.id.moodApathetic, R.id.moodSensitive,
                 R.id.disDry, R.id.disSticky, R.id.disCreamy, R.id.disEggwhite, R.id.disWatery,
                 R.id.enHigh, R.id.enNormal, R.id.enExhausted
@@ -433,7 +510,7 @@ public class TrackFragment extends Fragment {
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(getContext(), "Daily Log Saved successfully!", Toast.LENGTH_SHORT).show();
                     fetchPeriodLogicAndHistory();
-                    fetchSymptomTrends(); // Refresh graph!
+                    fetchSymptomTrends();
                 });
     }
 }

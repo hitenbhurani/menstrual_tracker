@@ -20,7 +20,6 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
-import java.util.Random;
 
 public class TodayFragment extends Fragment {
 
@@ -60,7 +59,7 @@ public class TodayFragment extends Fragment {
         calendar.set(Calendar.DAY_OF_WEEK, calendar.getFirstDayOfWeek());
         SimpleDateFormat dayLetterFormat = new SimpleDateFormat("E", Locale.getDefault());
 
-        weekStripLayout.removeAllViews(); // Clear existing views if any
+        weekStripLayout.removeAllViews();
         for (int i = 0; i < 7; i++) {
             LinearLayout dayCol = new LinearLayout(getContext());
             dayCol.setOrientation(LinearLayout.VERTICAL);
@@ -104,39 +103,47 @@ public class TodayFragment extends Fragment {
                         DocumentSnapshot doc = task.getResult();
                         Long lastPeriodStart = doc.getLong("lastPeriodStartMillis");
                         Long avgCycleLength = doc.getLong("averageCycleLength");
-                        
-                        // Extracting more user data for personalized insights
+
                         Long sleepHours = doc.getLong("sleepHours");
                         Long stressLevel = doc.getLong("stressLevel");
                         Boolean isPregnant = doc.getBoolean("isPregnant");
                         Boolean tryingToConceive = doc.getBoolean("tryingToConceive");
 
                         if (lastPeriodStart != null && avgCycleLength != null) {
-                            runPredictionAlgorithm(lastPeriodStart, avgCycleLength.intValue(), 
+                            runPredictionAlgorithm(lastPeriodStart, avgCycleLength.intValue(),
                                     sleepHours != null ? sleepHours.intValue() : 8,
                                     stressLevel != null ? stressLevel.intValue() : 0,
                                     isPregnant != null ? isPregnant : false,
                                     tryingToConceive != null ? tryingToConceive : false);
                         } else {
-                            Toast.makeText(getContext(), "Please complete onboarding to see predictions.", Toast.LENGTH_LONG).show();
+                            Toast.makeText(getContext(), "Please complete onboarding.", Toast.LENGTH_LONG).show();
                         }
                     }
                 });
     }
 
-    private void runPredictionAlgorithm(long lastPeriodMillis, int cycleDays, int sleepHours, int stressLevel, boolean isPregnant, boolean tryingToConceive) {
+    private void runPredictionAlgorithm(long originalLastPeriodMillis, int cycleDays, int sleepHours, int stressLevel, boolean isPregnant, boolean tryingToConceive) {
         Calendar today = Calendar.getInstance();
         long nowMillis = today.getTimeInMillis();
+        long cycleLengthMillis = cycleDays * ONE_DAY_MILLIS;
+
+        // --- THE ROLL-FORWARD FIX ---
+        // If they missed a period, we roll the clock forward cycle-by-cycle until we find the NEXT future date
+        long activeCycleStartMillis = originalLastPeriodMillis;
+        long nextPeriodMillis = activeCycleStartMillis + cycleLengthMillis;
+
+        while (nextPeriodMillis < nowMillis) {
+            activeCycleStartMillis += cycleLengthMillis;
+            nextPeriodMillis = activeCycleStartMillis + cycleLengthMillis;
+        }
 
         // 1. Next Period Date
-        long cycleLengthMillis = cycleDays * ONE_DAY_MILLIS;
-        long nextPeriodMillis = lastPeriodMillis + cycleLengthMillis;
         Calendar nextPeriod = Calendar.getInstance();
         nextPeriod.setTimeInMillis(nextPeriodMillis);
         SimpleDateFormat format = new SimpleDateFormat("MMMM d", Locale.getDefault());
         nextPeriodDateText.setText(format.format(nextPeriod.getTime()));
 
-        // 2. Fertile Window Calculation
+        // 2. Fertile Window Calculation (Based on the newly rolled-forward date)
         long ovulationMillis = nextPeriodMillis - (14 * ONE_DAY_MILLIS);
         long fertileWindowStart = ovulationMillis - (5 * ONE_DAY_MILLIS);
         long fertileWindowEnd = ovulationMillis + (1 * ONE_DAY_MILLIS);
@@ -145,47 +152,42 @@ public class TodayFragment extends Fragment {
 
         if (isPregnant) {
             pregnancyChanceText.setText("N/A - Pregnant");
-            insightBuilder.append("Congratulations! Focus on nutrition and prenatal vitamins. Stay hydrated and get plenty of rest.");
+            insightBuilder.append("Congratulations! Focus on nutrition and prenatal vitamins.");
         } else {
-            if (nowMillis >= lastPeriodMillis && nowMillis < (lastPeriodMillis + (5 * ONE_DAY_MILLIS))) {
-                // Menstrual Phase
+            // Check where they are in the CURRENT rolled-forward cycle
+            if (nowMillis >= activeCycleStartMillis && nowMillis < (activeCycleStartMillis + (5 * ONE_DAY_MILLIS))) {
                 pregnancyChanceText.setText("Low chance - Period phase");
                 insightBuilder.append("Focus on rest and hydration. Your body is working hard. ");
-                if (sleepHours < 7) insightBuilder.append("Try to get more sleep tonight. ");
             } else if (nowMillis >= fertileWindowStart && nowMillis <= fertileWindowEnd) {
-                // Ovulation/Fertile Phase
                 pregnancyChanceText.setText(tryingToConceive ? "High Chance - Optimal for conception" : "High Chance (Fertile Window)");
                 pregnancyChanceText.setTextColor(Color.parseColor("#C2185B"));
-                insightBuilder.append("You might feel more energetic now. It's a great time for active tasks and socializing! ");
+                insightBuilder.append("You might feel more energetic now. It's a great time for active tasks! ");
             } else {
-                // Luteal Phase
                 pregnancyChanceText.setText("Low Chance of getting pregnant");
-                insightBuilder.append("You are in the luteal phase. Gentle exercise like yoga can help manage potential PMS symptoms. ");
+                insightBuilder.append("You are in the luteal phase. Gentle exercise can help manage PMS. ");
+
+                // If they are officially LATE, tell them!
+                if (nowMillis > originalLastPeriodMillis + cycleLengthMillis && nowMillis < nextPeriodMillis - (14 * ONE_DAY_MILLIS)) {
+                    insightBuilder.insert(0, "⚠️ Your period is late. This can happen due to stress, hormonal shifts, or pregnancy.\n\n");
+                }
             }
 
-            // Daily Refresh Logic based on day of year to ensure it changes daily but stays same for the day
             int dayOfYear = today.get(Calendar.DAY_OF_YEAR);
             String[] dailyTips = {
-                "Drinking herbal tea like ginger can help with bloating.",
-                "Magnesium-rich foods like spinach or dark chocolate can improve mood.",
-                "Short 15-minute walks can significantly boost your energy levels.",
-                "Don't forget to track any symptoms you feel today for better future predictions.",
-                "Staying consistent with your wake-up time helps regulate your circadian rhythm.",
-                "Iron-rich foods are especially beneficial if you're feeling a bit sluggish.",
-                "Self-care isn't selfish; take 10 minutes today just for yourself."
+                    "Drinking herbal tea like ginger can help with bloating.",
+                    "Magnesium-rich foods like spinach or dark chocolate can improve mood.",
+                    "Short 15-minute walks can significantly boost your energy levels.",
+                    "Don't forget to track any symptoms you feel today!",
+                    "Staying consistent with your wake-up time helps regulate your rhythm."
             };
             insightBuilder.append("\n\nTip of the day: ").append(dailyTips[dayOfYear % dailyTips.length]);
-
-            if (stressLevel > 1) {
-                insightBuilder.append("\n\nNotice: You've mentioned high stress lately. Consider deep breathing exercises.");
-            }
         }
 
         dailyInsightText.setText(insightBuilder.toString());
 
         // 3. Hexagonal Progress Calculation
-        long totalCycleTime = nextPeriodMillis - lastPeriodMillis;
-        long timePassed = nowMillis - lastPeriodMillis;
+        long totalCycleTime = nextPeriodMillis - activeCycleStartMillis;
+        long timePassed = nowMillis - activeCycleStartMillis;
         float progressPercentage = (float) timePassed / totalCycleTime;
         hexProgressBar.setProgress(Math.max(0, Math.min(1, progressPercentage)));
 

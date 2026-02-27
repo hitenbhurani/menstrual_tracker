@@ -1,13 +1,16 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Force Light Theme properties even in Dark Mode for consistency as requested -->
-    <style name="Base.Theme.FemCare" parent="Theme.MaterialComponents.Light.NoActionBar">
-        <item name="colorPrimary">#C2185B</item>
-        <item name="colorPrimaryVariant">#880E4F</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorSecondary">#E91E63</item>
-        <item name="colorSecondaryVariant">#F06292</item>
-        <item name="colorOnSecondary">#FFFFFF</item>
-        <item name="android:statusBarColor">#C2185B</item>
-        <item name="android:windowBackground">#FDEEF4</item>
+    <!-- By leaving this file almost empty, the app will automatically use
+         the dark mode colors defined in /values-night/colors.xml -->
+    <style name="Theme.FemCare" parent="Base.Theme.FemCare" />
+
+    <style name="TrackerChip">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_columnWeight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:padding">12dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:background">@drawable/bg_symptom_unselected</item>
     </style>
 </resources>

@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.os.Looper;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -14,6 +15,15 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        // Theme logic must come before super.onCreate
+        SharedPreferences prefs = getSharedPreferences("FemCarePrefs", MODE_PRIVATE);
+        boolean isDarkMode = prefs.getBoolean("pref_dark_mode", false);
+        if (isDarkMode) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+        } else {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        }
+
         super.onCreate(savedInstanceState);
 
         // THIS DRAWS YOUR CUSTOM TEXT SCREEN
@@ -24,11 +34,10 @@ public class MainActivity extends AppCompatActivity {
             getSupportActionBar().hide();
         }
 
-        // Delay for 1.5 seconds (1500ms) to let the user read the screen
+        // Delay for 1.75 seconds (1750ms) to let the user read the screen
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
 
             FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-            SharedPreferences prefs = getSharedPreferences("FemCarePrefs", MODE_PRIVATE);
             boolean onboardingComplete = prefs.getBoolean("onboarding_complete", false);
 
             Intent intent;
@@ -49,6 +58,6 @@ public class MainActivity extends AppCompatActivity {
 
             finish();
 
-        }, 1500);
+        }, 1750);
     }
 }

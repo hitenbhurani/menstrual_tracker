@@ -17,6 +17,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -47,7 +48,7 @@ public class SettingsFragment extends Fragment {
     private TextView tvSettingsName, tvSettingsEmail;
     private TextView tvDescPeriod, tvDescOvulation, tvDescLog;
     private ImageView btnEditProfile;
-    private SwitchMaterial switchPeriodAlert, switchOvulationAlert, switchLogAlert;
+    private SwitchMaterial switchPeriodAlert, switchOvulationAlert, switchLogAlert, switchDarkMode;
 
     private FirebaseAuth mAuth;
     private FirebaseFirestore db;
@@ -74,10 +75,23 @@ public class SettingsFragment extends Fragment {
         switchPeriodAlert = view.findViewById(R.id.switchPeriodAlert);
         switchOvulationAlert = view.findViewById(R.id.switchOvulationAlert);
         switchLogAlert = view.findViewById(R.id.switchLogAlert);
+        switchDarkMode = view.findViewById(R.id.switchDarkMode);
 
         tvDescPeriod = view.findViewById(R.id.tvDescPeriod);
         tvDescOvulation = view.findViewById(R.id.tvDescOvulation);
         tvDescLog = view.findViewById(R.id.tvDescLog);
+
+        // Dark Mode Logic
+        boolean isDarkMode = prefs.getBoolean("pref_dark_mode", false);
+        switchDarkMode.setChecked(isDarkMode);
+        switchDarkMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            prefs.edit().putBoolean("pref_dark_mode", isChecked).apply();
+            if (isChecked) {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+            } else {
+                AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+            }
+        });
 
         loadUserProfile();
         enforceSmartNotificationLogic();

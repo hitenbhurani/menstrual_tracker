@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FDEEF4">
+    android:background="@color/app_background">
 
     <FrameLayout
         android:id="@+id/fragment_container"
@@ -21,7 +21,7 @@
         app:fabCradleMargin="10dp"
         app:fabCradleRoundedCornerRadius="12dp"
         app:fabCradleVerticalOffset="0dp"
-        app:backgroundTint="#FFFFFF">
+        app:backgroundTint="@color/card_background">
 
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/bottomNav"
@@ -45,6 +45,7 @@
         android:src="@android:drawable/ic_input_add"
         app:backgroundTint="#C2185B"
         app:layout_anchor="@id/bottomAppBar"
-        app:tint="#FFFFFF" />
+        app:tint="#FFFFFF"
+        app:elevation="4dp" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -24,6 +24,7 @@ public class BirthDateActivity extends AppCompatActivity {
 
     private AuthViewModel authViewModel;
     private TextView monthText, dayText, yearText;
+    private Button nextButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,7 +38,7 @@ public class BirthDateActivity extends AppCompatActivity {
         monthText = findViewById(R.id.monthText);
         dayText = findViewById(R.id.dayText);
         yearText = findViewById(R.id.yearText);
-        Button nextButton = findViewById(R.id.nextButton);
+        nextButton = findViewById(R.id.nextButton);
 
         // Map Click events
         findViewById(R.id.monthUp).setOnClickListener(v -> changeMonth(-1));
@@ -47,12 +48,10 @@ public class BirthDateActivity extends AppCompatActivity {
         findViewById(R.id.yearUp).setOnClickListener(v -> changeYear(-1));
         findViewById(R.id.yearDown).setOnClickListener(v -> changeYear(1));
 
-        // --- GESTURES: VERTICAL SWIPE ENGINE ---
         setupVerticalSwipe(findViewById(R.id.monthColumn), () -> changeMonth(-1), () -> changeMonth(1));
         setupVerticalSwipe(findViewById(R.id.dayColumn), () -> changeDay(-1), () -> changeDay(1));
         setupVerticalSwipe(findViewById(R.id.yearColumn), () -> changeYear(-1), () -> changeYear(1));
 
-        // --- MATH & DATABASE ENGINE ---
         nextButton.setOnClickListener(v -> {
             Calendar today = Calendar.getInstance();
             int age = today.get(Calendar.YEAR) - currentYear;
@@ -69,11 +68,22 @@ public class BirthDateActivity extends AppCompatActivity {
 
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
             if (user != null && user.getEmail() != null) {
-                authViewModel.updateAge(user.getEmail(), age);
+                nextButton.setEnabled(false);
+                authViewModel.updateAge(user.getEmail(), age, success -> {
+                    if (success) {
+                        Intent intent = new Intent(BirthDateActivity.this, UserInfoActivity.class);
+                        startActivity(intent);
+                        overridePendingTransition(0, 0); // Forces immediate transition
+                        finish();
+                    } else {
+                        nextButton.setEnabled(true);
+                        Toast.makeText(BirthDateActivity.this, "Failed to save age. Try again.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } else {
+                startActivity(new Intent(BirthDateActivity.this, LoginActivity.class));
+                finish();
             }
-
-            startActivity(new Intent(BirthDateActivity.this, UserInfoActivity.class));
-            finish();
         });
     }
 
@@ -97,25 +107,18 @@ public class BirthDateActivity extends AppCompatActivity {
         yearText.setText(String.valueOf(currentYear));
     }
 
-    // --- HYPER-SENSITIVE SWIPE GESTURE DETECTOR ---
     private void setupVerticalSwipe(View columnView, Runnable onSwipeUp, Runnable onSwipeDown) {
         GestureDetector gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
-
-            // SECRET FIX: Makes the emulator notice the mouse press immediately!
             @Override
-            public boolean onDown(MotionEvent e) {
-                return true;
-            }
+            public boolean onDown(MotionEvent e) { return true; }
 
             @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
                 if (e1 == null || e2 == null) return false;
                 float diffY = e2.getY() - e1.getY();
-
-                // Lowered threshold to 10
                 if (Math.abs(diffY) > 10 && Math.abs(velocityY) > 10) {
-                    if (diffY > 0) onSwipeDown.run(); // Swiped Down
-                    else onSwipeUp.run();             // Swiped Up
+                    if (diffY > 0) onSwipeDown.run();
+                    else onSwipeUp.run();
                     return true;
                 }
                 return false;

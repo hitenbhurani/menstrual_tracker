@@ -2,6 +2,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="true" />
+
+    <queries>
+        <package android:name="com.google.android.apps.maps" />
+    </queries>
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -9,12 +21,24 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
+        android:usesCleartextTraffic="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.FemCare">
 
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyAyRZ6Kuw1qy9DTK5xUsf9McJUfs9jGWks" />
+
+        <activity
+            android:name=".FindDoctorActivity"
+            android:exported="false" />
+        <activity
+            android:name=".MedicalReportActivity"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.miniflo.femcare.fileprovider"
+            android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
@@ -22,45 +46,24 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <activity
-            android:name=".LifestyleActivity"
-            android:exported="false" />
-        <activity
-            android:name=".DashboardActivity"
-            android:exported="false" />
-        <activity
-            android:name=".UneasinessActivity"
-            android:exported="false" />
-        <activity
-            android:name=".ReproductiveProblemsActivity"
-            android:exported="false" />
-        <activity
-            android:name=".LastPeriodActivity"
-            android:exported="false" />
-        <activity
-            android:name=".TypicalCycleActivity"
-            android:exported="false" />
-        <activity
-            android:name=".UserInfoActivity"
-            android:exported="false" />
-        <activity
-            android:name=".BirthDateActivity"
-            android:exported="false" />
-        <activity
-            android:name=".RegisterActivity"
-            android:exported="false" />
-        <activity
-            android:name=".LoginActivity"
-            android:exported="false" />
+        <activity android:name=".LifestyleActivity" android:exported="false" />
+        <activity android:name=".DashboardActivity" android:exported="false" />
+        <activity android:name=".UneasinessActivity" android:exported="false" />
+        <activity android:name=".ReproductiveProblemsActivity" android:exported="false" />
+        <activity android:name=".LastPeriodActivity" android:exported="false" />
+        <activity android:name=".TypicalCycleActivity" android:exported="false" />
+        <activity android:name=".UserInfoActivity" android:exported="false" />
+        <activity android:name=".BirthDateActivity" android:exported="false" />
+        <activity android:name=".RegisterActivity" android:exported="false" />
+        <activity android:name=".LoginActivity" android:exported="true" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
     </application>
-
 </manifest>

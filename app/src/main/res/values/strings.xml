@@ -1,3 +1,41 @@
 <resources>
     <string name="app_name">FemCare</string>
+    <!-- TODO: Replace with your real Web Client ID from Firebase Console or add google-services.json -->
+    <string name="default_web_client_id">YOUR_WEB_CLIENT_ID_HERE</string>
+
+    <string name="nearby_help_title">Nearby Gynecologists &amp; Clinics</string>
+    <string name="chip_sort_distance">Distance</string>
+    <string name="chip_filter_rating">&gt; 4.0 Stars</string>
+    <string name="chip_filter_well_known">Well-Known (50+ reviews)</string>
+    <string name="chip_filter_open_now">Open Now</string>
+    <string name="empty_no_clinics">No clinics found in your area.</string>
+    <string name="filtered_no_results">No clinics match the selected filters.</string>
+
+    <string name="map_unavailable_now">Map unavailable right now</string>
+    <string name="map_unavailable_device">Map unavailable on this device</string>
+
+    <string name="location_permission_required">Location permission is required to find nearby clinics.</string>
+    <string name="location_permission_short">Location permission is required.</string>
+    <string name="allow_location_toast">Please allow location to use Nearby Help</string>
+    <string name="gps_unavailable">Unable to detect your GPS location.</string>
+    <string name="osm_no_results">No hospitals or clinics found within 10 km.</string>
+    <string name="osm_fetch_error">Unable to load clinics from OpenStreetMap right now.</string>
+
+    <string name="google_api_key_missing">Google API key not found.</string>
+    <string name="error_load_clinics">Unable to load clinics. Check internet and API key settings.</string>
+    <string name="error_places_status">Unable to load clinics right now (%1$s).</string>
+
+    <string name="unknown_clinic">Unknown Clinic</string>
+    <string name="address_unavailable">Address unavailable</string>
+    <string name="you_are_here">You are here</string>
+    <string name="directions">Directions</string>
+    <string name="no_maps_app">No maps app found for directions</string>
+
+    <string name="rating_unavailable">Rating and review data unavailable</string>
+    <string name="rating_reviews_format">%1$.1f ★ (%2$d reviews)</string>
+    <string name="distance_km_away_format">%1$.1f km away</string>
+    <string name="open_now">Open now</string>
+    <string name="closed_or_unavailable">Closed / status unavailable</string>
+    <string name="well_known_label">Well Known</string>
+    <string name="map_snippet_format">%1$.1f ★ • %2$d reviews</string>
 </resources>

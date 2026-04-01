@@ -15,38 +15,35 @@ public class AuthViewModel extends AndroidViewModel {
         repository = new AuthRepository(application);
     }
 
-    // Removed the 'age' parameter here too
     public LiveData<Boolean> register(String email, String password, String name) {
         return repository.registerUser(email, password, name);
     }
 
-    // this method so the UI can safely talk to the Repository:
-    public void updateAge(String email, int calculatedAge) {
-        repository.updateUserAge(email, calculatedAge);
+    public void updateAge(String email, int calculatedAge, AuthRepository.OnDataSavedListener listener) {
+        repository.updateUserAge(email, calculatedAge, listener);
     }
 
-    public void updateUserInfo(String email, boolean isRegular, boolean onBirthControl, int stressLevel, int height, int weight, double bmi) {
-        repository.updateUserInfo(email, isRegular, onBirthControl, stressLevel, height, weight, bmi);
+    public void updateUserInfo(String email, boolean isRegular, boolean onBirthControl, int stressLevel, int height, int weight, double bmi, AuthRepository.OnDataSavedListener listener) {
+        repository.updateUserInfo(email, isRegular, onBirthControl, stressLevel, height, weight, bmi, listener);
     }
 
-    public void updateCycleLength(String email, int cycleLength) {
-        repository.updateCycleLength(email, cycleLength);
+    public void updateCycleLength(String email, int cycleLength, AuthRepository.OnDataSavedListener listener) {
+        repository.updateCycleLength(email, cycleLength, listener);
     }
 
-//    Add the bridge method:
-    public void updatePeriodData(String email, int duration, long startMillis) {
-        repository.updatePeriodData(email, duration, startMillis);
+    public void updatePeriodData(String email, int duration, long startMillis, AuthRepository.OnDataSavedListener listener) {
+        repository.updatePeriodData(email, duration, startMillis, listener);
     }
 
-    public void updateReproductiveHealth(String email, boolean hasProblem) {
-        repository.updateReproductiveHealth(email, hasProblem);
+    public void updateReproductiveHealth(String email, boolean hasProblem, AuthRepository.OnDataSavedListener listener) {
+        repository.updateReproductiveHealth(email, hasProblem, listener);
     }
 
     public LiveData<Boolean> finalizeOnboarding(String email, String symptomsList) {
         return repository.finalizeOnboarding(email, symptomsList);
     }
 
-    public void updateLifestyleData(String email, boolean isPregnant, boolean tryingToConceive, int sleepHours, int exerciseFrequency) {
-        repository.updateLifestyleData(email, isPregnant, tryingToConceive, sleepHours, exerciseFrequency);
+    public void updateLifestyleData(String email, boolean isPregnant, boolean tryingToConceive, int sleepHours, int exerciseFrequency, AuthRepository.OnDataSavedListener listener) {
+        repository.updateLifestyleData(email, isPregnant, tryingToConceive, sleepHours, exerciseFrequency, listener);
     }
 }

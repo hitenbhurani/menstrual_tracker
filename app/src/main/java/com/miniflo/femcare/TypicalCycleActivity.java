@@ -19,6 +19,7 @@ public class TypicalCycleActivity extends AppCompatActivity {
     private int currentDays = 28;
     private TextView daysText;
     private AuthViewModel authViewModel;
+    private Button nextButton, notSureButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,37 +34,28 @@ public class TypicalCycleActivity extends AppCompatActivity {
         TextView arrowLeft = findViewById(R.id.arrowLeft);
         TextView arrowRight = findViewById(R.id.arrowRight);
         View swipeArea = findViewById(R.id.swipeArea);
-        Button nextButton = findViewById(R.id.nextButton);
-        Button notSureButton = findViewById(R.id.notSureButton);
+        nextButton = findViewById(R.id.nextButton);
+        notSureButton = findViewById(R.id.notSureButton);
 
-        // 1. CLICK GESTURES
         arrowLeft.setOnClickListener(v -> updateDays(-1));
         arrowRight.setOnClickListener(v -> updateDays(1));
 
-        // 2. LONG PRESS GESTURE
         notSureButton.setOnLongClickListener(v -> {
             Toast.makeText(this, "If not sure, we use a 28-day average for now!", Toast.LENGTH_LONG).show();
             return true;
         });
 
-        // 3. HYPER-SENSITIVE SWIPE GESTURE
         GestureDetector gestureDetector = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
-
-            // THIS IS THE SECRET FIX: Forces Android to register the mouse click before the swipe!
             @Override
-            public boolean onDown(MotionEvent e) {
-                return true;
-            }
+            public boolean onDown(MotionEvent e) { return true; }
 
             @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
                 if (e1 == null || e2 == null) return false;
                 float diffX = e2.getX() - e1.getX();
-
-                // Lowered threshold to 20 for emulator mouse sensitivity
                 if (Math.abs(diffX) > 20 && Math.abs(velocityX) > 20) {
-                    if (diffX > 0) updateDays(1); // Swipe Right
-                    else updateDays(-1);          // Swipe Left
+                    if (diffX > 0) updateDays(1);
+                    else updateDays(-1);
                     return true;
                 }
                 return false;
@@ -75,18 +67,34 @@ public class TypicalCycleActivity extends AppCompatActivity {
             return true;
         });
 
-        // --- MVVM DB SAVING ---
         View.OnClickListener moveForward = v -> {
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
             if (user != null && user.getEmail() != null) {
-                authViewModel.updateCycleLength(user.getEmail(), currentDays);
+                setButtonsEnabled(false);
+                authViewModel.updateCycleLength(user.getEmail(), currentDays, success -> {
+                    if (success) {
+                        Intent intent = new Intent(TypicalCycleActivity.this, LastPeriodActivity.class);
+                        startActivity(intent);
+                        overridePendingTransition(0, 0); // Forces immediate transition
+                        finish();
+                    } else {
+                        setButtonsEnabled(true);
+                        Toast.makeText(TypicalCycleActivity.this, "Failed to save cycle length. Try again.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } else {
+                startActivity(new Intent(TypicalCycleActivity.this, LoginActivity.class));
+                finish();
             }
-            startActivity(new Intent(TypicalCycleActivity.this, LastPeriodActivity.class));
-            finish();
         };
 
         nextButton.setOnClickListener(moveForward);
         notSureButton.setOnClickListener(moveForward);
+    }
+
+    private void setButtonsEnabled(boolean enabled) {
+        nextButton.setEnabled(enabled);
+        notSureButton.setEnabled(enabled);
     }
 
     private void updateDays(int change) {

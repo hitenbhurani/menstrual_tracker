@@ -47,7 +47,7 @@
                     android:layout_height="wrap_content"
                     android:layout_centerVertical="true"
                     android:layout_marginStart="16dp"
-                    android:layout_toStartOf="@id/btnEditProfile"
+                    android:layout_toStartOf="@+id/btnEditProfile"
                     android:layout_toEndOf="@id/imgProfile"
                     android:orientation="vertical">
 
@@ -148,7 +148,7 @@
                 android:padding="16dp">
 
                 <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content">
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_toStartOf="@id/switchPeriodAlert" android:layout_marginEnd="16dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_toStartOf="@+id/switchPeriodAlert" android:layout_marginEnd="16dp">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Period in a couple of days" android:textColor="@color/text_primary" android:textSize="16sp" />
                         <TextView android:id="@+id/tvDescPeriod" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Checking your cycle..." android:textColor="@color/text_secondary" android:textSize="12sp" />
                     </LinearLayout>
@@ -158,7 +158,7 @@
                 <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="12dp" android:background="@color/divider_color" />
 
                 <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content">
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_toStartOf="@id/switchOvulationAlert" android:layout_marginEnd="16dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_toStartOf="@+id/switchOvulationAlert" android:layout_marginEnd="16dp">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Ovulation Day" android:textColor="@color/text_primary" android:textSize="16sp" />
                         <TextView android:id="@+id/tvDescOvulation" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Checking your cycle..." android:textColor="@color/text_secondary" android:textSize="12sp" />
                     </LinearLayout>
@@ -168,7 +168,7 @@
                 <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="12dp" android:background="@color/divider_color" />
 
                 <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content">
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_toStartOf="@id/switchLogAlert" android:layout_marginEnd="16dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_toStartOf="@+id/switchLogAlert" android:layout_marginEnd="16dp">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Daily Logging Reminder" android:textColor="@color/text_primary" android:textSize="16sp" />
                         <TextView android:id="@+id/tvDescLog" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="If ON: We'll remind you at 8 PM to track today's symptoms." android:textColor="@color/text_secondary" android:textSize="12sp" />
                     </LinearLayout>
@@ -182,7 +182,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
-            android:text="Account &amp; Data"
+            android:text="Support &amp; Reports"
             android:textColor="@color/text_primary"
             android:textSize="18sp"
             android:textStyle="bold" />
@@ -200,6 +200,8 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical">
 
+                <TextView android:id="@+id/btnMedicalReports" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:text="Medical Reports (Capture &amp; Upload)" android:textColor="@color/text_primary" android:textSize="16sp" app:drawableEndCompat="@android:drawable/ic_menu_camera" app:drawableTint="@color/brand_primary" />
+                <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider_color" />
                 <TextView android:id="@+id/btnExportData" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:text="Export Data for Doctor" android:textColor="@color/text_primary" android:textSize="16sp" app:drawableEndCompat="@android:drawable/ic_menu_share" app:drawableTint="@color/brand_primary" />
                 <View android:layout_width="match_parent" android:layout_height="1dp" android:background="@color/divider_color" />
                 <TextView android:id="@+id/btnPrivacy" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:text="Privacy &amp; Security" android:textColor="@color/text_primary" android:textSize="16sp" />

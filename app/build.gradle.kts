@@ -31,6 +31,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 dependencies {
@@ -56,6 +59,9 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-messaging")
+    implementation(libs.play.services.auth)
+    implementation(libs.play.services.location)
+    implementation("org.osmdroid:osmdroid-android:6.1.20")
 
     // --- 4. WORKMANAGER (Background Tasks & Daily Math) ---
     implementation("androidx.work:work-runtime:2.9.0")
@@ -63,7 +69,11 @@ dependencies {
     // --- 5. RETROFIT & GSON (REST API) ---
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.android.volley:volley:1.2.1")
 
     // --- 6. MPANDROIDCHART (For TrackFragment Graphs) ---
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+    // --- 7. GLIDE (Image preview for medical report uploads) ---
+    implementation("com.github.bumptech.glide:glide:4.16.0")
 }

@@ -16,6 +16,7 @@ import com.miniflo.femcare.viewmodel.AuthViewModel;
 public class LifestyleActivity extends AppCompatActivity {
 
     private AuthViewModel authViewModel;
+    private Button nextButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,7 +36,7 @@ public class LifestyleActivity extends AppCompatActivity {
         AutoCompleteTextView dropdownGoal = findViewById(R.id.dropdownGoal);
         AutoCompleteTextView dropdownExercise = findViewById(R.id.dropdownExercise);
         TextInputEditText sleepInput = findViewById(R.id.sleepInput);
-        Button nextButton = findViewById(R.id.nextButton);
+        nextButton = findViewById(R.id.nextButton);
 
         dropdownGoal.setAdapter(goalAdapter);
         dropdownExercise.setAdapter(exerciseAdapter);
@@ -50,33 +51,46 @@ public class LifestyleActivity extends AppCompatActivity {
                 return;
             }
 
-            int sleepHours = Integer.parseInt(sleepStr);
+            int sleepHours;
+            try {
+                sleepHours = Integer.parseInt(sleepStr);
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "Invalid sleep hours.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
             if (sleepHours < 1 || sleepHours > 20) {
                 Toast.makeText(this, "Please enter valid sleep hours.", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            // Convert to Database variables
             boolean tryingToConceive = goalStr.equals("Trying to conceive");
             boolean isPregnant = goalStr.equals("Track pregnancy");
 
-            int exerciseFrequency = 0; // 0=Rarely, 1=Light, 2=Moderate, 3=Active
+            int exerciseFrequency = 0;
             switch (exerciseStr) {
                 case "Light (1-2x a week)": exerciseFrequency = 1; break;
                 case "Moderate (3-4x a week)": exerciseFrequency = 2; break;
                 case "Active (5+ a week)": exerciseFrequency = 3; break;
             }
 
-            // Save to Firebase & Room
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
             if (user != null && user.getEmail() != null) {
-                authViewModel.updateLifestyleData(user.getEmail(), isPregnant, tryingToConceive, sleepHours, exerciseFrequency);
+                nextButton.setEnabled(false);
+                authViewModel.updateLifestyleData(user.getEmail(), isPregnant, tryingToConceive, sleepHours, exerciseFrequency, success -> {
+                    if (success) {
+                        Intent intent = new Intent(LifestyleActivity.this, UneasinessActivity.class);
+                        startActivity(intent);
+                        finish();
+                    } else {
+                        nextButton.setEnabled(true);
+                        Toast.makeText(LifestyleActivity.this, "Failed to save lifestyle data. Try again.", Toast.LENGTH_SHORT).show();
+                    }
+                });
+            } else {
+                startActivity(new Intent(LifestyleActivity.this, LoginActivity.class));
+                finish();
             }
-
-            // Move to the final screen!
-            Intent intent = new Intent(LifestyleActivity.this, UneasinessActivity.class);
-            startActivity(intent);
-            finish();
         });
     }
 }

@@ -105,16 +105,28 @@ public class SettingsFragment extends Fragment {
     private void loadUserProfile() {
         FirebaseUser user = mAuth.getCurrentUser();
         if (user != null) {
+            // 1. Instantly set the email
             tvSettingsEmail.setText(user.getEmail());
 
+            // 2. Try to get the Google Display Name first
+            String googleName = user.getDisplayName();
+            if (googleName != null && !googleName.isEmpty()) {
+                tvSettingsName.setText(googleName);
+                currentName = googleName; // update local cache
+            } else {
+                tvSettingsName.setText("FemCare User");
+            }
+
+            // 3. Still fetch from Firestore to get height/weight and override name if they manually edited it
             db.collection("users").document(user.getEmail()).get()
                     .addOnSuccessListener(doc -> {
                         if (doc.exists()) {
                             if (doc.contains("name")) {
-                                currentName = doc.getString("name");
-                                if (currentName != null && !currentName.isEmpty()) {
-                                    String formattedName = currentName.substring(0, 1).toUpperCase() + currentName.substring(1);
+                                String dbName = doc.getString("name");
+                                if (dbName != null && !dbName.isEmpty()) {
+                                    String formattedName = dbName.substring(0, 1).toUpperCase() + dbName.substring(1);
                                     tvSettingsName.setText(formattedName);
+                                    currentName = dbName;
                                 }
                             }
                             if (doc.contains("heightCm")) currentHeight = String.valueOf(doc.getLong("heightCm"));
@@ -178,6 +190,10 @@ public class SettingsFragment extends Fragment {
 
     private void setupClickListeners(View view) {
         btnEditProfile.setOnClickListener(v -> openEditProfileSheet());
+        view.findViewById(R.id.btnMedicalReports).setOnClickListener(v -> {
+            Intent intent = new Intent(requireContext(), MedicalReportActivity.class);
+            startActivity(intent);
+        });
         view.findViewById(R.id.btnExportData).setOnClickListener(v -> generateAndShareDetailedReport());
 
         view.findViewById(R.id.btnPrivacy).setOnClickListener(v ->
@@ -421,8 +437,7 @@ public class SettingsFragment extends Fragment {
     }
 
     private void drawWatermark(Canvas canvas, Paint paint, int width, int height, int alpha) {
-        Bitmap logo = BitmapFactory.decodeResource(getResources(), R.drawable.logo
-        );
+        Bitmap logo = BitmapFactory.decodeResource(getResources(), R.drawable.logo);
         if (logo != null) {
             Bitmap scaledLogo = Bitmap.createScaledBitmap(logo, 300, 300, true);
             paint.setAlpha(alpha);

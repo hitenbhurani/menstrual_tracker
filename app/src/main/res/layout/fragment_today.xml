@@ -100,6 +100,7 @@
         app:layout_constraintTop_toTopOf="@id/centralHubContainer" />
 
     <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardDailyInsight"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="24dp"

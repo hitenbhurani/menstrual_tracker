@@ -1,5 +1,6 @@
 package com.miniflo.femcare;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
@@ -47,6 +48,7 @@ public class TrackFragment extends Fragment {
     private CheckBox cbPeriodEnds;
     private RecyclerView historyCalendarGrid;
     private LineChart symptomTrendChart;
+    private View cardFindDoctor;
 
     private List<TextView> allChips = new ArrayList<>();
     private List<String> selectedLogs = new ArrayList<>();
@@ -73,6 +75,17 @@ public class TrackFragment extends Fragment {
         symptomTrendChart = view.findViewById(R.id.symptomTrendChart);
         tvWaterCount = view.findViewById(R.id.tvWaterCount);
         tvHistMonth = view.findViewById(R.id.tvHistMonth);
+        cardFindDoctor = view.findViewById(R.id.cardFindDoctor);
+
+        if (cardFindDoctor != null) {
+            cardFindDoctor.setOnClickListener(v -> {
+                try {
+                    startActivity(new Intent(requireContext(), FindDoctorActivity.class));
+                } catch (Exception e) {
+                    Toast.makeText(requireContext(), "Unable to open Nearby Help right now", Toast.LENGTH_LONG).show();
+                }
+            });
+        }
 
         currentlySelectedDate = Calendar.getInstance();
         currentHistoryMonth = Calendar.getInstance();

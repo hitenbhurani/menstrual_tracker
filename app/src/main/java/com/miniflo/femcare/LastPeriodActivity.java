@@ -18,6 +18,7 @@ public class LastPeriodActivity extends AppCompatActivity {
 
     private long selectedDateMillis = 0;
     private AuthViewModel authViewModel;
+    private Button nextButton, notSureButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,13 +31,11 @@ public class LastPeriodActivity extends AppCompatActivity {
 
         CalendarView calendarView = findViewById(R.id.calendarView);
         TextInputEditText durationInput = findViewById(R.id.durationInput);
-        Button nextButton = findViewById(R.id.nextButton);
-        Button notSureButton = findViewById(R.id.notSureButton);
+        nextButton = findViewById(R.id.nextButton);
+        notSureButton = findViewById(R.id.notSureButton);
 
-        // Block future dates (Cannot select a period that hasn't happened yet!)
         calendarView.setMaxDate(System.currentTimeMillis());
 
-        // Listen for user calendar taps
         calendarView.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
             Calendar cal = Calendar.getInstance();
             cal.set(year, month, dayOfMonth, 0, 0, 0);
@@ -44,7 +43,6 @@ public class LastPeriodActivity extends AppCompatActivity {
             selectedDateMillis = cal.getTimeInMillis();
         });
 
-        // --- MAIN BUTTON LOGIC ---
         nextButton.setOnClickListener(v -> {
             String durationStr = durationInput.getText() != null ? durationInput.getText().toString().trim() : "";
 
@@ -57,7 +55,14 @@ public class LastPeriodActivity extends AppCompatActivity {
                 return;
             }
 
-            int duration = Integer.parseInt(durationStr);
+            int duration;
+            try {
+                duration = Integer.parseInt(durationStr);
+            } catch (NumberFormatException e) {
+                durationInput.setError("Invalid number");
+                return;
+            }
+
             if (duration < 1 || duration > 15) {
                 durationInput.setError("Please enter a valid duration (1-15)");
                 return;
@@ -66,9 +71,7 @@ public class LastPeriodActivity extends AppCompatActivity {
             saveDataAndMoveOn(duration, selectedDateMillis);
         });
 
-        // --- "NOT SURE" BUTTON LOGIC ---
         notSureButton.setOnClickListener(v -> {
-            // Default to a 5-day period that started 14 days ago
             Calendar defaultCal = Calendar.getInstance();
             defaultCal.add(Calendar.DAY_OF_YEAR, -14);
             saveDataAndMoveOn(5, defaultCal.getTimeInMillis());
@@ -76,22 +79,34 @@ public class LastPeriodActivity extends AppCompatActivity {
     }
 
     private void saveDataAndMoveOn(int duration, long startMillis) {
-        // 1. Save locally for fast Dashboard access
-        SharedPreferences prefs = getSharedPreferences("FemCarePrefs", MODE_PRIVATE);
-        prefs.edit()
-                .putLong("lastPeriodStartMillis", startMillis)
-                .putInt("periodDuration", duration)
-                .apply();
-
-        // 2. Save securely to Firebase and Room!
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user != null && user.getEmail() != null) {
-            authViewModel.updatePeriodData(user.getEmail(), duration, startMillis);
-        }
+            setButtonsEnabled(false);
+            authViewModel.updatePeriodData(user.getEmail(), duration, startMillis, success -> {
+                if (success) {
+                    SharedPreferences prefs = getSharedPreferences("FemCarePrefs", MODE_PRIVATE);
+                    prefs.edit()
+                            .putLong("lastPeriodStartMillis", startMillis)
+                            .putInt("periodDuration", duration)
+                            .apply();
 
-        // 3. Move to the next screen
-        Intent intent = new Intent(LastPeriodActivity.this, ReproductiveProblemsActivity.class);
-        startActivity(intent);
-        finish();
+                    Intent intent = new Intent(LastPeriodActivity.this, ReproductiveProblemsActivity.class);
+                    startActivity(intent);
+                    overridePendingTransition(0, 0); // Forces immediate transition
+                    finish();
+                } else {
+                    setButtonsEnabled(true);
+                    Toast.makeText(LastPeriodActivity.this, "Failed to save period data. Try again.", Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            startActivity(new Intent(LastPeriodActivity.this, LoginActivity.class));
+            finish();
+        }
+    }
+
+    private void setButtonsEnabled(boolean enabled) {
+        nextButton.setEnabled(enabled);
+        notSureButton.setEnabled(enabled);
     }
 }

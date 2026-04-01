@@ -33,10 +33,10 @@ public class RegisterActivity extends AppCompatActivity {
         ProgressBar progressBar = findViewById(R.id.progressBar);
 
         registerButton.setOnClickListener(v -> {
-            String name = nameInput.getText() != null ? nameInput.getText().toString().trim() : "";
-            String email = emailInput.getText() != null ? emailInput.getText().toString().trim() : "";
-            String password = passwordInput.getText() != null ? passwordInput.getText().toString().trim() : "";
-            String confirmPass = confirmInput.getText() != null ? confirmInput.getText().toString().trim() : "";
+            String name = getTrimmedText(nameInput);
+            String email = getTrimmedText(emailInput);
+            String password = getTrimmedText(passwordInput);
+            String confirmPass = getTrimmedText(confirmInput);
 
             // --- STRICT VALIDATION RULES (Age Removed) ---
             if (name.isEmpty() || email.isEmpty() || password.isEmpty() || confirmPass.isEmpty()) {
@@ -72,12 +72,20 @@ public class RegisterActivity extends AppCompatActivity {
 
                     // Route to Onboarding!
                     Intent intent = new Intent(RegisterActivity.this, BirthDateActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     startActivity(intent);
+                    finish();
                 } else {
                     Toast.makeText(this, "Registration Failed. Check your network or try another email.", Toast.LENGTH_LONG).show();
                 }
             });
         });
+    }
+
+    private String getTrimmedText(TextInputEditText inputEditText) {
+        if (inputEditText == null || inputEditText.getText() == null) {
+            return "";
+        }
+        return inputEditText.getText().toString().trim();
     }
 }

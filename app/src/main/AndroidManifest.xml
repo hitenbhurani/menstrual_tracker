@@ -27,7 +27,7 @@
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyAyRZ6Kuw1qy9DTK5xUsf9McJUfs9jGWks" />
+            android:value="${MAPS_API_KEY}" />
 
         <activity
             android:name=".FindDoctorActivity"

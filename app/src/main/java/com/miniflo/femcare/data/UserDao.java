@@ -9,32 +9,27 @@ import androidx.room.Query;
 @Dao
 public interface UserDao {
 
-    // Saves the user profile. If it already exists, it overwrites it with the new updated data!
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertUser(UserEntity user);
 
-    // Grabs the specific user's data using their email
     @Query("SELECT * FROM user_table WHERE email = :email LIMIT 1")
     LiveData<UserEntity> getUserByEmail(String email);
 
-    // Deletes the user profile (used when they log out or delete account)
+    @Query("SELECT COUNT(*) FROM user_table")
+    int getUserCountForWarmup();
+
     @Query("DELETE FROM user_table WHERE email = :email")
     void deleteUser(String email);
 
-//    this one line of code to the interface so Room knows how to update the age:
     @Query("UPDATE user_table SET age = :newAge WHERE email = :userEmail")
     void updateUserAge(String userEmail, int newAge);
 
-//    Update Database Tools for User Info
-//    We need to teach the DAO and Repository how to save these specific fields.
     @Query("UPDATE user_table SET isRegular = :isRegular, onBirthControl = :onBirthControl, stressLevel = :stressLevel, heightCm = :height, weightKg = :weight, bmi = :bmi WHERE email = :userEmail")
     void updateUserInfo(String userEmail, boolean isRegular, boolean onBirthControl, int stressLevel, int height, int weight, double bmi);
 
-//    let Room know how to save the cycle length:
     @Query("UPDATE user_table SET averageCycleLength = :cycleLength WHERE email = :userEmail")
     void updateCycleLength(String userEmail, int cycleLength);
 
-//this query so Room knows how to update the duration:
     @Query("UPDATE user_table SET periodDuration = :duration WHERE email = :userEmail")
     void updatePeriodDuration(String userEmail, int duration);
 

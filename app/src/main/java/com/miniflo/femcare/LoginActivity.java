@@ -22,9 +22,13 @@ import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException;
 import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.auth.GoogleAuthProvider;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.miniflo.femcare.data.AppDatabase;
+import com.miniflo.femcare.data.UserEntity;
 
 import java.util.List;
+import java.util.concurrent.Executors;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -45,7 +49,6 @@ public class LoginActivity extends AppCompatActivity {
 
         mAuth = FirebaseAuth.getInstance();
 
-        // 1. HARDCODED YOUR EXACT WEB CLIENT ID HERE
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestIdToken("199892000795-t7vhgudfo5h5u4k3f9ljhfmu19avgqpg.apps.googleusercontent.com")
                 .requestEmail()
@@ -59,7 +62,6 @@ public class LoginActivity extends AppCompatActivity {
         btnGoogleSignIn = findViewById(R.id.btnGoogleSignIn);
         tvGoToRegister = findViewById(R.id.tvGoToRegister);
 
-        // Routing to Register Activity
         tvGoToRegister.setOnClickListener(v -> {
             startActivity(new Intent(LoginActivity.this, RegisterActivity.class));
         });
@@ -95,7 +97,6 @@ public class LoginActivity extends AppCompatActivity {
                     firebaseAuthWithGoogle(account.getIdToken());
                 }
             } catch (ApiException e) {
-                // 2. ERROR CATCHER: This will show the exact code if it fails
                 int statusCode = e.getStatusCode();
                 Toast.makeText(this, "Google sign in failed. Code: " + statusCode, Toast.LENGTH_LONG).show();
             }
@@ -107,15 +108,6 @@ public class LoginActivity extends AppCompatActivity {
         mAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
-                        FirebaseUser user = mAuth.getCurrentUser();
-                        if (user != null && user.getEmail() != null) {
-                            // CREATE THE LOCAL ROOM DATABASE ROW FOR GOOGLE USERS!
-                            java.util.concurrent.Executors.newSingleThreadExecutor().execute(() -> {
-                                com.miniflo.femcare.data.UserEntity entity = new com.miniflo.femcare.data.UserEntity(user.getEmail());
-                                entity.name = user.getDisplayName() != null ? user.getDisplayName() : "FemCare User";
-                                com.miniflo.femcare.data.AppDatabase.getInstance(getApplicationContext()).userDao().insertUser(entity);
-                            });
-                        }
                         routeAfterSignIn();
                     } else {
                         Toast.makeText(LoginActivity.this, "Firebase Auth with Google failed", Toast.LENGTH_SHORT).show();
@@ -207,8 +199,11 @@ public class LoginActivity extends AppCompatActivity {
         FirebaseFirestore.getInstance().collection("users").document(email)
                 .get()
                 .addOnSuccessListener(snapshot -> {
+                    // SYNC TO LOCAL SQLITE (ROOM)
+                    syncFirestoreToRoom(email, snapshot);
+
                     Boolean onboardingField = snapshot.getBoolean("onboardingComplete");
-                    boolean onboardingComplete = onboardingField == null || onboardingField;
+                    boolean onboardingComplete = onboardingField != null && onboardingField;
 
                     SharedPreferences prefs = getSharedPreferences("FemCarePrefs", MODE_PRIVATE);
                     prefs.edit().putBoolean("onboarding_complete", onboardingComplete).apply();
@@ -220,6 +215,28 @@ public class LoginActivity extends AppCompatActivity {
                     }
                 })
                 .addOnFailureListener(e -> openAndClearTask(DashboardActivity.class));
+    }
+
+    private void syncFirestoreToRoom(String email, DocumentSnapshot snapshot) {
+        Executors.newSingleThreadExecutor().execute(() -> {
+            UserEntity entity = new UserEntity(email);
+            entity.name = snapshot.getString("name");
+            
+            Long ageLong = snapshot.getLong("age");
+            entity.age = ageLong != null ? ageLong.intValue() : 0;
+            
+            Boolean isRegular = snapshot.getBoolean("isRegular");
+            entity.isRegular = isRegular != null && isRegular;
+
+            Long cycleLength = snapshot.getLong("averageCycleLength");
+            entity.averageCycleLength = cycleLength != null ? cycleLength.intValue() : 28;
+
+            Long periodDuration = snapshot.getLong("periodDuration");
+            entity.periodDuration = periodDuration != null ? periodDuration.intValue() : 5;
+
+            // Save to the SQL database!
+            AppDatabase.getInstance(getApplicationContext()).userDao().insertUser(entity);
+        });
     }
 
     private void openAndClearTask(Class<?> destination) {

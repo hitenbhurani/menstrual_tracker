@@ -11,6 +11,8 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.SetOptions;
 import com.miniflo.femcare.data.AppDatabase;
+import com.miniflo.femcare.data.CycleDao;
+import com.miniflo.femcare.data.CycleEntity;
 import com.miniflo.femcare.data.UserDao;
 import com.miniflo.femcare.data.UserEntity;
 import java.util.HashMap;
@@ -23,8 +25,9 @@ public class AuthRepository {
     private final FirebaseAuth firebaseAuth;
     private final FirebaseFirestore firestore;
     private final UserDao userDao;
+    private final CycleDao cycleDao;
     private final ExecutorService executorService;
-    private final Handler mainHandler; // NEW: To hop back to the UI thread
+    private final Handler mainHandler;
 
     public interface OnDataSavedListener {
         void onSaved(boolean success);
@@ -36,9 +39,10 @@ public class AuthRepository {
 
         AppDatabase db = AppDatabase.getInstance(application);
         userDao = db.userDao();
+        cycleDao = db.cycleDao();
 
         executorService = Executors.newSingleThreadExecutor();
-        mainHandler = new Handler(Looper.getMainLooper()); // NEW: Initializes the Main Thread Handler
+        mainHandler = new Handler(Looper.getMainLooper());
     }
 
     public LiveData<Boolean> registerUser(String email, String password, String name) {
@@ -116,7 +120,6 @@ public class AuthRepository {
                 .addOnSuccessListener(aVoid -> {
                     executorService.execute(() -> {
                         userDao.updateUserAge(email, calculatedAge);
-                        // FIXED: Hop back to Main Thread
                         if (listener != null) mainHandler.post(() -> listener.onSaved(true));
                     });
                 })
@@ -140,7 +143,6 @@ public class AuthRepository {
                 .addOnSuccessListener(aVoid -> {
                     executorService.execute(() -> {
                         userDao.updateUserInfo(email, isRegular, onBirthControl, stressLevel, height, weight, bmi);
-                        // FIXED: Hop back to Main Thread
                         if (listener != null) mainHandler.post(() -> listener.onSaved(true));
                     });
                 })
@@ -159,7 +161,6 @@ public class AuthRepository {
                 .addOnSuccessListener(aVoid -> {
                     executorService.execute(() -> {
                         userDao.updateCycleLength(email, cycleLength);
-                        // FIXED: Hop back to Main Thread
                         if (listener != null) mainHandler.post(() -> listener.onSaved(true));
                     });
                 })
@@ -179,7 +180,12 @@ public class AuthRepository {
                 .addOnSuccessListener(aVoid -> {
                     executorService.execute(() -> {
                         userDao.updatePeriodDuration(email, duration);
-                        // FIXED: Hop back to Main Thread
+                        
+                        // NEW: Also log the first cycle entry into cycle_table for Experiment 10 Demo
+                        long endMillis = startMillis + (duration * 86400000L); // duration in days to millis
+                        CycleEntity firstCycle = new CycleEntity(startMillis, endMillis, 28, duration);
+                        cycleDao.insertCycle(firstCycle);
+
                         if (listener != null) mainHandler.post(() -> listener.onSaved(true));
                     });
                 })
@@ -199,7 +205,6 @@ public class AuthRepository {
                 .addOnSuccessListener(aVoid -> {
                     executorService.execute(() -> {
                         userDao.updateReproductiveHealth(email, hasProblem);
-                        // FIXED: Hop back to Main Thread
                         if (listener != null) mainHandler.post(() -> listener.onSaved(true));
                     });
                 })
@@ -220,7 +225,7 @@ public class AuthRepository {
                 .addOnSuccessListener(aVoid -> {
                     executorService.execute(() -> {
                         userDao.finalizeOnboarding(email, symptomsList);
-                        status.postValue(true); // postValue is already thread-safe!
+                        status.postValue(true);
                     });
                 })
                 .addOnFailureListener(e -> {
@@ -242,7 +247,6 @@ public class AuthRepository {
                 .addOnSuccessListener(aVoid -> {
                     executorService.execute(() -> {
                         userDao.updateLifestyleData(email, isPregnant, tryingToConceive, sleepHours, exerciseFrequency);
-                        // FIXED: Hop back to Main Thread
                         if (listener != null) mainHandler.post(() -> listener.onSaved(true));
                     });
                 })

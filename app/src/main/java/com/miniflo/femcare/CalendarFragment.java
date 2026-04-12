@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -37,6 +38,8 @@ import java.util.Locale;
 import java.util.Map;
 
 public class CalendarFragment extends Fragment {
+
+    private static final String TAG = "CalendarFragment";
 
     private TextView tvMonthYear;
     private RecyclerView calendarRecyclerView, rvRecentNotes;
@@ -235,23 +238,80 @@ public class CalendarFragment extends Fragment {
                 return;
             }
 
-            int newCycle = Integer.parseInt(newCycleStr);
+            int newCycle;
+            try {
+                newCycle = Integer.parseInt(newCycleStr);
+            } catch (NumberFormatException e) {
+                etEditCycleLength.setError("Enter a valid number");
+                return;
+            }
+
+            if (newCycle < 20 || newCycle > 90) {
+                etEditCycleLength.setError("Cycle length must be between 20 and 90 days");
+                return;
+            }
+
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
 
             if (user != null && user.getEmail() != null) {
+                btnSaveEdits.setEnabled(false);
+
                 Map<String, Object> updates = new HashMap<>();
                 updates.put("lastPeriodStartMillis", newlySelectedMillis[0]);
                 updates.put("averageCycleLength", newCycle);
 
-                FirebaseFirestore.getInstance().collection("users").document(user.getEmail())
+                FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+
+                firestore.collection("users").document(user.getEmail())
                         .update(updates)
                         .addOnSuccessListener(aVoid -> {
-                            Toast.makeText(getContext(), "Cycle updated!", Toast.LENGTH_SHORT).show();
-                            lastPeriodMillis = newlySelectedMillis[0];
-                            cycleLength = newCycle;
-                            adapter.notifyDataSetChanged();
-                            editSheet.dismiss();
+                            firestore.waitForPendingWrites()
+                                    .addOnSuccessListener(unused -> {
+                                        btnSaveEdits.setEnabled(true);
+
+                                        if (!isAdded() || getContext() == null) {
+                                            return;
+                                        }
+
+                                        FirebaseAuthState.clearAuthError(requireContext());
+                                        Toast.makeText(getContext(), "Cycle updated!", Toast.LENGTH_SHORT).show();
+
+                                        NotificationPublisher.publishForCurrentUser(
+                                                requireContext(),
+                                                "cycle_updated_" + System.currentTimeMillis(),
+                                                "Cycle Preferences Updated",
+                                                "Future reminders were refreshed using your new cycle details.",
+                                                "cycle",
+                                                true
+                                        );
+
+                                        BackgroundTaskScheduler.scheduleAll(requireContext());
+                                        BackgroundTaskScheduler.enqueueImmediateSync(requireContext(), "cycle_data_updated");
+
+                                        lastPeriodMillis = newlySelectedMillis[0];
+                                        cycleLength = newCycle;
+                                        adapter.notifyDataSetChanged();
+                                        editSheet.dismiss();
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        btnSaveEdits.setEnabled(true);
+                                        Log.e(TAG, "Cycle update was not acknowledged by Firebase", e);
+                                        handleCloudSaveFailure(
+                                                e,
+                                                "Could not confirm cycle sync with Firebase. Please retry."
+                                        );
+                                    });
+                        })
+                        .addOnFailureListener(e -> {
+                            btnSaveEdits.setEnabled(true);
+                            Log.e(TAG, "Failed to update cycle data", e);
+                            handleCloudSaveFailure(
+                                    e,
+                                    "Failed to update cycle. Please try again."
+                            );
                         });
+            } else {
+                Toast.makeText(getContext(), "Please sign in again to update cycle data.", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -286,20 +346,64 @@ public class CalendarFragment extends Fragment {
 
         btnSave.setOnClickListener(v -> {
             String note = etNote.getText().toString().trim();
-            if (user != null) {
-                Map<String, Object> noteData = new HashMap<>();
-                noteData.put("noteText", note);
-                noteData.put("timestamp", System.currentTimeMillis());
-
-                FirebaseFirestore.getInstance().collection("users").document(user.getEmail())
-                        .collection("notes").document(dbDateKey)
-                        .set(noteData, SetOptions.merge())
-                        .addOnSuccessListener(aVoid -> {
-                            Toast.makeText(getContext(), "Note saved securely!", Toast.LENGTH_SHORT).show();
-                            fetchRecentNotes();
-                            bottomSheetDialog.dismiss();
-                        });
+            FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+            if (currentUser == null || currentUser.getEmail() == null || currentUser.getEmail().trim().isEmpty()) {
+                Toast.makeText(getContext(), "Please sign in again to save notes.", Toast.LENGTH_SHORT).show();
+                return;
             }
+
+            btnSave.setEnabled(false);
+
+            Map<String, Object> noteData = new HashMap<>();
+            noteData.put("noteText", note);
+            noteData.put("timestamp", System.currentTimeMillis());
+
+            FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+
+            firestore.collection("users").document(currentUser.getEmail().trim())
+                    .collection("notes").document(dbDateKey)
+                    .set(noteData, SetOptions.merge())
+                    .addOnSuccessListener(aVoid -> {
+                        firestore.waitForPendingWrites()
+                                .addOnSuccessListener(unused -> {
+                                    btnSave.setEnabled(true);
+
+                                    if (!isAdded() || getContext() == null) {
+                                        return;
+                                    }
+
+                                    FirebaseAuthState.clearAuthError(requireContext());
+                                    Toast.makeText(getContext(), "Note saved securely!", Toast.LENGTH_SHORT).show();
+
+                                    NotificationPublisher.publishForCurrentUser(
+                                            getContext(),
+                                            "note_saved_" + dbDateKey + "_" + System.currentTimeMillis(),
+                                            "Calendar Note Saved",
+                                            "Your note for " + dbDateKey + " was saved.",
+                                            "note",
+                                            true
+                                    );
+
+                                    fetchRecentNotes();
+                                    bottomSheetDialog.dismiss();
+                                })
+                                .addOnFailureListener(e -> {
+                                    btnSave.setEnabled(true);
+                                    Log.e(TAG, "Note save was not acknowledged by Firebase", e);
+                                    handleCloudSaveFailure(
+                                            e,
+                                            "Could not confirm note sync with Firebase. Please retry."
+                                    );
+                                });
+                    })
+                    .addOnFailureListener(e -> {
+                        btnSave.setEnabled(true);
+                        Log.e(TAG, "Failed to save note", e);
+                        handleCloudSaveFailure(
+                                e,
+                                "Could not save note. Please try again."
+                        );
+                    });
         });
 
         bottomSheetDialog.show();
@@ -442,5 +546,23 @@ public class CalendarFragment extends Fragment {
         e.setCompoundDrawablesWithIntrinsicBounds(createCircleBg("#C2185B", false), null, null, null);
         o.setCompoundDrawablesWithIntrinsicBounds(createCircleBg("#F44336", true), null, null, null);
         f.setCompoundDrawablesWithIntrinsicBounds(createCircleBg("#F8BBD0", true), null, null, null);
+    }
+
+    private void handleCloudSaveFailure(@NonNull Exception error, @NonNull String genericMessage) {
+        if (!isAdded() || getContext() == null) {
+            return;
+        }
+
+        if (FirebaseAuthState.isAuthTokenError(error)) {
+            FirebaseAuthState.markAuthError(requireContext());
+            Toast.makeText(
+                    getContext(),
+                    "Firebase auth session failed. Please sign out, sign in again, and retry.",
+                    Toast.LENGTH_LONG
+            ).show();
+            return;
+        }
+
+        Toast.makeText(getContext(), genericMessage, Toast.LENGTH_SHORT).show();
     }
 }

@@ -223,6 +223,11 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void openAndClearTask(Class<?> destination) {
+        if (destination == DashboardActivity.class) {
+            BackgroundTaskScheduler.scheduleAll(this);
+            BackgroundTaskScheduler.enqueueImmediateSync(this, "login_success");
+        }
+
         Intent intent = new Intent(LoginActivity.this, destination);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);

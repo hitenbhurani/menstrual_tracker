@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -42,6 +43,8 @@ import java.util.Locale;
 import java.util.Map;
 
 public class TrackFragment extends Fragment {
+
+    private static final String TAG = "TrackFragment";
 
     private TextView tvTrackDateHeader, tvWaterCount, tvHistMonth, tvDailyInsightTrack;
     private LinearLayout weekStripLayoutTrack, periodEndsContainer;
@@ -105,7 +108,8 @@ public class TrackFragment extends Fragment {
         fetchPeriodLogicAndHistory();
         fetchSymptomTrends();
 
-        view.findViewById(R.id.btnSaveDailyLog).setOnClickListener(v -> saveDailyLogToDatabase());
+        View saveButton = view.findViewById(R.id.btnSaveDailyLog);
+        saveButton.setOnClickListener(v -> saveDailyLogToDatabase(v));
 
         setupSwipeGestures();
         return view;
@@ -295,10 +299,14 @@ public class TrackFragment extends Fragment {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
 
         db.collection("users").document(user.getEmail()).get().addOnSuccessListener(doc -> {
-            if (doc.contains("lastPeriodStartMillis")) {
-                userLastPeriodMillis = doc.getLong("lastPeriodStartMillis");
-                userPeriodDuration = doc.getLong("periodDuration").intValue();
-                userCycleLength = doc.getLong("averageCycleLength").intValue();
+            Long lastPeriod = doc.getLong("lastPeriodStartMillis");
+            Long periodDuration = doc.getLong("periodDuration");
+            Long cycleLength = doc.getLong("averageCycleLength");
+
+            if (lastPeriod != null) {
+                userLastPeriodMillis = lastPeriod;
+                userPeriodDuration = periodDuration != null ? periodDuration.intValue() : 5;
+                userCycleLength = cycleLength != null ? cycleLength.intValue() : 28;
                 enforcePeriodCheckboxLogic();
             }
         });
@@ -505,25 +513,127 @@ public class TrackFragment extends Fragment {
         }
     }
 
-    private void saveDailyLogToDatabase() {
+    private void saveDailyLogToDatabase(@NonNull View triggerView) {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) return;
+        if (user == null || user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+            if (isAdded() && getContext() != null) {
+                Toast.makeText(getContext(), "Please sign in again to save logs.", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+
+        String email = user.getEmail().trim();
 
         String dateKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(currentlySelectedDate.getTime());
+        String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().getTime());
 
         Map<String, Object> logData = new HashMap<>();
-        logData.put("loggedTraits", selectedLogs);
+        logData.put("loggedTraits", new ArrayList<>(selectedLogs));
         logData.put("waterGlasses", waterGlasses);
         logData.put("periodEndsToday", cbPeriodEnds.isChecked());
         logData.put("timestamp", System.currentTimeMillis());
 
-        FirebaseFirestore.getInstance().collection("users").document(user.getEmail())
-                .collection("daily_logs").document(dateKey)
+        triggerView.setEnabled(false);
+
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        com.google.firebase.firestore.DocumentReference logDocRef = db.collection("users")
+                .document(email)
+                .collection("daily_logs")
+                .document(dateKey);
+
+        boolean wasExisting = loggedHistoryCache.containsKey(dateKey);
+        persistDailyLog(logDocRef, logData, dateKey, todayKey, wasExisting, triggerView);
+    }
+
+    private void persistDailyLog(
+            @NonNull com.google.firebase.firestore.DocumentReference logDocRef,
+            @NonNull Map<String, Object> logData,
+            @NonNull String dateKey,
+            @NonNull String todayKey,
+            boolean wasExisting,
+            @NonNull View triggerView
+    ) {
+        logDocRef
                 .set(logData, SetOptions.merge())
                 .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(getContext(), "Daily Log Saved successfully!", Toast.LENGTH_SHORT).show();
-                    fetchPeriodLogicAndHistory();
-                    fetchSymptomTrends();
+                    logDocRef.getFirestore()
+                            .waitForPendingWrites()
+                            .addOnSuccessListener(unused -> {
+                                triggerView.setEnabled(true);
+
+                                if (!isAdded() || getContext() == null) {
+                                    return;
+                                }
+
+                                FirebaseAuthState.clearAuthError(requireContext());
+
+                                boolean isUpdate = wasExisting;
+                                String toastMessage = isUpdate ? "Daily Log Updated!" : "Daily Log Saved successfully!";
+                                Toast.makeText(getContext(), toastMessage, Toast.LENGTH_SHORT).show();
+
+                                String notifIdPrefix = isUpdate ? "log_updated_" : "log_saved_";
+                                String notifTitle = isUpdate ? "Daily Log Updated" : "Daily Log Saved";
+                                String notifBody;
+                                if (isUpdate) {
+                                    notifBody = "Your tracked log was updated successfully.";
+                                } else {
+                                    notifBody = dateKey.equals(todayKey)
+                                            ? "Your daily symptoms were saved and synced."
+                                            : "A historical daily log was saved successfully.";
+                                }
+
+                                try {
+                                    NotificationPublisher.publishForCurrentUser(
+                                            getContext(),
+                                            notifIdPrefix + dateKey + "_" + System.currentTimeMillis(),
+                                            notifTitle,
+                                            notifBody,
+                                            "log",
+                                            true
+                                    );
+
+                                    BackgroundTaskScheduler.enqueueImmediateSync(getContext(), isUpdate ? "daily_log_updated" : "daily_log_saved");
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Post-save notification sync failed", e);
+                                }
+
+                                fetchPeriodLogicAndHistory();
+                                fetchSymptomTrends();
+                            })
+                            .addOnFailureListener(e -> {
+                                triggerView.setEnabled(true);
+                                Log.e(TAG, "Daily log write was not acknowledged by Firebase", e);
+                                handleCloudSaveFailure(
+                                        e,
+                                        "Could not confirm Firebase save. Please check connection and retry."
+                                );
+                            });
+                })
+                .addOnFailureListener(e -> {
+                    triggerView.setEnabled(true);
+                    Log.e(TAG, "Failed to save daily log", e);
+                    handleCloudSaveFailure(
+                            e,
+                            "Could not save daily log. Please check internet and try again."
+                    );
                 });
+    }
+
+    private void handleCloudSaveFailure(@NonNull Exception error, @NonNull String genericMessage) {
+        if (!isAdded() || getContext() == null) {
+            return;
+        }
+
+        if (FirebaseAuthState.isAuthTokenError(error)) {
+            FirebaseAuthState.markAuthError(requireContext());
+            Toast.makeText(
+                    getContext(),
+                    "Firebase auth session failed. Please sign out, sign in again, and retry.",
+                    Toast.LENGTH_LONG
+            ).show();
+            return;
+        }
+
+        Toast.makeText(getContext(), genericMessage, Toast.LENGTH_SHORT).show();
     }
 }

@@ -173,16 +173,19 @@ public class SettingsFragment extends Fragment {
                 switchPeriodAlert.setOnCheckedChangeListener((btn, isChecked) -> {
                     prefs.edit().putBoolean("pref_alert_period", isChecked).apply();
                     tvDescPeriod.setText(isChecked ? "ON: We'll alert you 2 days before." : "OFF: No heads-up reminder.");
+                    BackgroundTaskScheduler.enqueueImmediateSync(requireContext(), "pref_alert_period_changed");
                 });
 
                 switchOvulationAlert.setOnCheckedChangeListener((btn, isChecked) -> {
                     prefs.edit().putBoolean("pref_alert_ovulation", isChecked).apply();
                     tvDescOvulation.setText(isChecked ? "ON: We'll remind you on Ovulation day." : "OFF: No ovulation reminder.");
+                    BackgroundTaskScheduler.enqueueImmediateSync(requireContext(), "pref_alert_ovulation_changed");
                 });
 
                 switchLogAlert.setOnCheckedChangeListener((btn, isChecked) -> {
                     prefs.edit().putBoolean("pref_alert_log", isChecked).apply();
                     tvDescLog.setText(isChecked ? "ON: Reminding you daily at 8 PM." : "OFF: No daily logging reminders.");
+                    BackgroundTaskScheduler.enqueueImmediateSync(requireContext(), "pref_alert_log_changed");
                 });
             }
         });

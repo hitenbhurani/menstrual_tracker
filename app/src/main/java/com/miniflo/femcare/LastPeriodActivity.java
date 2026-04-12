@@ -90,6 +90,9 @@ public class LastPeriodActivity extends AppCompatActivity {
                             .putInt("periodDuration", duration)
                             .apply();
 
+                    BackgroundTaskScheduler.scheduleAll(LastPeriodActivity.this);
+                    BackgroundTaskScheduler.enqueueImmediateSync(LastPeriodActivity.this, "period_data_saved");
+
                     Intent intent = new Intent(LastPeriodActivity.this, ReproductiveProblemsActivity.class);
                     startActivity(intent);
                     overridePendingTransition(0, 0); // Forces immediate transition

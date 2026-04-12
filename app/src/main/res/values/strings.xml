@@ -38,4 +38,12 @@
     <string name="closed_or_unavailable">Closed / status unavailable</string>
     <string name="well_known_label">Well Known</string>
     <string name="map_snippet_format">%1$.1f ★ • %2$d reviews</string>
+
+    <!-- Registration Strings -->
+    <string name="create_account">Create Account</string>
+    <string name="full_name">Full Name</string>
+    <string name="email_address">Email Address</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="register">Register</string>
 </resources>

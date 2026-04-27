@@ -33,6 +33,7 @@ import java.util.concurrent.Executors;
 public class LoginActivity extends AppCompatActivity {
 
     private static final int RC_SIGN_IN = 9001;
+    private static final String FALLBACK_WEB_CLIENT_ID = "199892000795-t7vhgudfo5h5u4k3f9ljhfmu19avgqpg.apps.googleusercontent.com";
     private FirebaseAuth mAuth;
     private GoogleSignInClient mGoogleSignInClient;
 
@@ -49,8 +50,10 @@ public class LoginActivity extends AppCompatActivity {
 
         mAuth = FirebaseAuth.getInstance();
 
+        String webClientId = resolveWebClientId();
+
         GoogleSignInOptions gso = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestIdToken("199892000795-t7vhgudfo5h5u4k3f9ljhfmu19avgqpg.apps.googleusercontent.com")
+            .requestIdToken(webClientId)
                 .requestEmail()
                 .build();
 
@@ -104,16 +107,47 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void firebaseAuthWithGoogle(String idToken) {
+        if (idToken == null || idToken.trim().isEmpty()) {
+            Toast.makeText(this, "Google Sign-In did not return a valid token. Please try again.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         AuthCredential credential = GoogleAuthProvider.getCredential(idToken, null);
         mAuth.signInWithCredential(credential)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
+                        FirebaseAuthState.clearAuthError(this);
                         routeAfterSignIn();
                     } else {
-                        Toast.makeText(LoginActivity.this, "Firebase Auth with Google failed", Toast.LENGTH_SHORT).show();
+                        Exception error = task.getException();
+                        if (FirebaseAuthState.isAuthTokenError(error)) {
+                            FirebaseAuthState.markAuthError(this);
+                            FirebaseAuthState.logAuthErrorDetail(this, error);
+                            Toast.makeText(
+                                    this,
+                                    "🔴 Firebase authentication blocked. "
+                                    + "Contact app support or try updating the app. "
+                                    + "Error: " + (error.getMessage() != null ? error.getMessage().substring(0, Math.min(50, error.getMessage().length())) : "unknown"),
+                                    Toast.LENGTH_LONG
+                            ).show();
+                            FirebaseAuthState.showAuthErrorRecoveryDialog(this);
+                        } else {
+                            String message = error != null && error.getMessage() != null
+                                    ? error.getMessage()
+                                    : "Unknown error";
+                            Toast.makeText(LoginActivity.this, "Firebase Auth with Google failed: " + message, Toast.LENGTH_LONG).show();
+                        }
                     }
                 });
 
+    }
+
+    private String resolveWebClientId() {
+        String fromResources = getString(R.string.default_web_client_id).trim();
+        if (fromResources.isEmpty() || fromResources.startsWith("YOUR_")) {
+            return FALLBACK_WEB_CLIENT_ID;
+        }
+        return fromResources;
     }
 
     private String getTrimmedText(TextInputEditText inputEditText) {
@@ -170,6 +204,20 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void showEmailLoginError(Exception error) {
+        if (FirebaseAuthState.isAuthTokenError(error)) {
+            FirebaseAuthState.markAuthError(this);
+            FirebaseAuthState.logAuthErrorDetail(this, error);
+            Toast.makeText(
+                    this,
+                    "🔴 Firebase authentication blocked. "
+                    + "Contact app support or try updating the app. "
+                    + "Error: " + (error.getMessage() != null ? error.getMessage().substring(0, Math.min(50, error.getMessage().length())) : "unknown"),
+                    Toast.LENGTH_LONG
+            ).show();
+            FirebaseAuthState.showAuthErrorRecoveryDialog(this);
+            return;
+        }
+
         if (error instanceof FirebaseAuthInvalidUserException) {
             Toast.makeText(this, "No account found for this email.", Toast.LENGTH_LONG).show();
             return;

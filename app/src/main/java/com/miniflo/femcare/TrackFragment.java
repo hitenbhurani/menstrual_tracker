@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.Gravity;
@@ -45,6 +47,10 @@ import java.util.Map;
 public class TrackFragment extends Fragment {
 
     private static final String TAG = "TrackFragment";
+    
+    // Timeout protection for cloud saves
+    private Handler timeoutHandler = new Handler(Looper.getMainLooper());
+    private static final long CLOUD_SAVE_TIMEOUT_MS = 15_000; // 15 seconds
 
     private TextView tvTrackDateHeader, tvWaterCount, tvHistMonth, tvDailyInsightTrack;
     private LinearLayout weekStripLayoutTrack, periodEndsContainer;
@@ -533,16 +539,16 @@ public class TrackFragment extends Fragment {
         logData.put("periodEndsToday", cbPeriodEnds.isChecked());
         logData.put("timestamp", System.currentTimeMillis());
 
-        triggerView.setEnabled(false);
+        wrapCloudSaveWithTimeout(triggerView, () -> {
+            FirebaseFirestore db = FirebaseFirestore.getInstance();
+            com.google.firebase.firestore.DocumentReference logDocRef = db.collection("users")
+                    .document(email)
+                    .collection("daily_logs")
+                    .document(dateKey);
 
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        com.google.firebase.firestore.DocumentReference logDocRef = db.collection("users")
-                .document(email)
-                .collection("daily_logs")
-                .document(dateKey);
-
-        boolean wasExisting = loggedHistoryCache.containsKey(dateKey);
-        persistDailyLog(logDocRef, logData, dateKey, todayKey, wasExisting, triggerView);
+            boolean wasExisting = loggedHistoryCache.containsKey(dateKey);
+            persistDailyLog(logDocRef, logData, dateKey, todayKey, wasExisting, triggerView);
+        }, "Daily log save");
     }
 
     private void persistDailyLog(
@@ -556,58 +562,46 @@ public class TrackFragment extends Fragment {
         logDocRef
                 .set(logData, SetOptions.merge())
                 .addOnSuccessListener(aVoid -> {
-                    logDocRef.getFirestore()
-                            .waitForPendingWrites()
-                            .addOnSuccessListener(unused -> {
-                                triggerView.setEnabled(true);
+                    triggerView.setEnabled(true);
 
-                                if (!isAdded() || getContext() == null) {
-                                    return;
-                                }
+                    if (!isAdded() || getContext() == null) {
+                        return;
+                    }
 
-                                FirebaseAuthState.clearAuthError(requireContext());
+                    FirebaseAuthState.clearAuthError(requireContext());
 
-                                boolean isUpdate = wasExisting;
-                                String toastMessage = isUpdate ? "Daily Log Updated!" : "Daily Log Saved successfully!";
-                                Toast.makeText(getContext(), toastMessage, Toast.LENGTH_SHORT).show();
+                    boolean isUpdate = wasExisting;
+                    String toastMessage = isUpdate ? "Daily Log Updated!" : "Daily Log Saved successfully!";
+                    Toast.makeText(getContext(), toastMessage, Toast.LENGTH_SHORT).show();
 
-                                String notifIdPrefix = isUpdate ? "log_updated_" : "log_saved_";
-                                String notifTitle = isUpdate ? "Daily Log Updated" : "Daily Log Saved";
-                                String notifBody;
-                                if (isUpdate) {
-                                    notifBody = "Your tracked log was updated successfully.";
-                                } else {
-                                    notifBody = dateKey.equals(todayKey)
-                                            ? "Your daily symptoms were saved and synced."
-                                            : "A historical daily log was saved successfully.";
-                                }
+                    String notifIdPrefix = isUpdate ? "log_updated_" : "log_saved_";
+                    String notifTitle = isUpdate ? "Daily Log Updated" : "Daily Log Saved";
+                    String notifBody;
+                    if (isUpdate) {
+                        notifBody = "Your tracked log was updated successfully.";
+                    } else {
+                        notifBody = dateKey.equals(todayKey)
+                                ? "Your daily symptoms were saved and synced."
+                                : "A historical daily log was saved successfully.";
+                    }
 
-                                try {
-                                    NotificationPublisher.publishForCurrentUser(
-                                            getContext(),
-                                            notifIdPrefix + dateKey + "_" + System.currentTimeMillis(),
-                                            notifTitle,
-                                            notifBody,
-                                            "log",
-                                            true
-                                    );
+                    try {
+                        NotificationPublisher.publishForCurrentUser(
+                                getContext(),
+                                notifIdPrefix + dateKey + "_" + System.currentTimeMillis(),
+                                notifTitle,
+                                notifBody,
+                                "log",
+                                true
+                        );
 
-                                    BackgroundTaskScheduler.enqueueImmediateSync(getContext(), isUpdate ? "daily_log_updated" : "daily_log_saved");
-                                } catch (Exception e) {
-                                    Log.e(TAG, "Post-save notification sync failed", e);
-                                }
+                        BackgroundTaskScheduler.enqueueImmediateSync(getContext(), isUpdate ? "daily_log_updated" : "daily_log_saved");
+                    } catch (Exception e) {
+                        Log.e(TAG, "Post-save notification sync failed", e);
+                    }
 
-                                fetchPeriodLogicAndHistory();
-                                fetchSymptomTrends();
-                            })
-                            .addOnFailureListener(e -> {
-                                triggerView.setEnabled(true);
-                                Log.e(TAG, "Daily log write was not acknowledged by Firebase", e);
-                                handleCloudSaveFailure(
-                                        e,
-                                        "Could not confirm Firebase save. Please check connection and retry."
-                                );
-                            });
+                    fetchPeriodLogicAndHistory();
+                    fetchSymptomTrends();
                 })
                 .addOnFailureListener(e -> {
                     triggerView.setEnabled(true);
@@ -635,5 +629,27 @@ public class TrackFragment extends Fragment {
         }
 
         Toast.makeText(getContext(), genericMessage, Toast.LENGTH_SHORT).show();
+    }
+
+    private void wrapCloudSaveWithTimeout(View triggerView, Runnable saveLogic, String operationName) {
+        triggerView.setEnabled(false);
+        
+        // Schedule timeout safety net
+        timeoutHandler.postDelayed(() -> {
+            if (!triggerView.isEnabled()) {
+                // Safety timeout triggered - re-enable button
+                triggerView.setEnabled(true);
+                if (isAdded() && getContext() != null) {
+                    Toast.makeText(
+                            getContext(),
+                            operationName + " taking longer than expected. Tap again to retry.",
+                            Toast.LENGTH_LONG
+                    ).show();
+                }
+            }
+        }, CLOUD_SAVE_TIMEOUT_MS);
+        
+        // Execute the actual save logic
+        saveLogic.run();
     }
 }

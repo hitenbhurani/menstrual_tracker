@@ -1,7 +1,11 @@
 <resources>
     <string name="app_name">FemCare</string>
-    <!-- TODO: Replace with your real Web Client ID from Firebase Console or add google-services.json -->
-    <string name="default_web_client_id">YOUR_WEB_CLIENT_ID_HERE</string>
+
+    <string name="note_sheet_date_placeholder">Date</string>
+    <string name="note_sheet_status_placeholder">Status: Fertile Window</string>
+    <string name="note_sheet_status_format">Status: %1$s</string>
+    <string name="note_sheet_input_hint">Add a private note about today...</string>
+    <string name="note_sheet_save">Save Note</string>
 
     <string name="nearby_help_title">Nearby Gynecologists &amp; Clinics</string>
     <string name="chip_sort_distance">Distance</string>

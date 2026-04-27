@@ -2,6 +2,8 @@ package com.miniflo.femcare;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -21,6 +23,10 @@ public class BirthDateActivity extends AppCompatActivity {
     int currentMonthIndex = 0;
     int currentDay = 4;
     int currentYear = 2000;
+    
+    // Timeout protection for cloud saves
+    private Handler timeoutHandler = new Handler(Looper.getMainLooper());
+    private static final long CLOUD_SAVE_TIMEOUT_MS = 15_000; // 15 seconds
 
     private AuthViewModel authViewModel;
     private TextView monthText, dayText, yearText;
@@ -54,32 +60,34 @@ public class BirthDateActivity extends AppCompatActivity {
 
         nextButton.setOnClickListener(v -> {
             Calendar today = Calendar.getInstance();
-            int age = today.get(Calendar.YEAR) - currentYear;
+            int ageValue = today.get(Calendar.YEAR) - currentYear;
 
             if (today.get(Calendar.MONTH) < currentMonthIndex ||
                     (today.get(Calendar.MONTH) == currentMonthIndex && today.get(Calendar.DAY_OF_MONTH) < currentDay)) {
-                age--;
+                ageValue--;
             }
 
-            if (age < 10 || age > 100) {
+            if (ageValue < 10 || ageValue > 100) {
                 Toast.makeText(this, "Please select a valid birth date.", Toast.LENGTH_SHORT).show();
                 return;
             }
 
+            final int age = ageValue;
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
             if (user != null && user.getEmail() != null) {
-                nextButton.setEnabled(false);
-                authViewModel.updateAge(user.getEmail(), age, success -> {
-                    if (success) {
-                        Intent intent = new Intent(BirthDateActivity.this, UserInfoActivity.class);
-                        startActivity(intent);
-                        overridePendingTransition(0, 0); // Forces immediate transition
-                        finish();
-                    } else {
-                        nextButton.setEnabled(true);
-                        Toast.makeText(BirthDateActivity.this, "Failed to save age. Try again.", Toast.LENGTH_SHORT).show();
-                    }
-                });
+                wrapCloudSaveWithTimeout(nextButton, () -> {
+                    authViewModel.updateAge(user.getEmail(), age, success -> {
+                        if (success) {
+                            Intent intent = new Intent(BirthDateActivity.this, UserInfoActivity.class);
+                            startActivity(intent);
+                            overridePendingTransition(0, 0); // Forces immediate transition
+                            finish();
+                        } else {
+                            nextButton.setEnabled(true);
+                            Toast.makeText(BirthDateActivity.this, "Failed to save age. Try again.", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }, "Age save");
             } else {
                 startActivity(new Intent(BirthDateActivity.this, LoginActivity.class));
                 finish();
@@ -129,5 +137,25 @@ public class BirthDateActivity extends AppCompatActivity {
             gestureDetector.onTouchEvent(event);
             return true;
         });
+    }
+
+    private void wrapCloudSaveWithTimeout(View triggerView, Runnable saveLogic, String operationName) {
+        triggerView.setEnabled(false);
+        
+        // Schedule timeout safety net
+        timeoutHandler.postDelayed(() -> {
+            if (!triggerView.isEnabled()) {
+                // Safety timeout triggered - re-enable button
+                triggerView.setEnabled(true);
+                Toast.makeText(
+                        this,
+                        operationName + " taking longer than expected. Tap again to retry.",
+                        Toast.LENGTH_LONG
+                ).show();
+            }
+        }, CLOUD_SAVE_TIMEOUT_MS);
+        
+        // Execute the actual save logic
+        saveLogic.run();
     }
 }

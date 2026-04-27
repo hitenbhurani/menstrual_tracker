@@ -8,6 +8,7 @@ import androidx.work.Worker;
 import androidx.work.WorkerParameters;
 
 import com.google.android.gms.tasks.Tasks;
+import java.util.concurrent.TimeUnit;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -80,21 +81,25 @@ public class ScheduledNotificationWorker extends Worker {
         String todayKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Calendar.getInstance().getTime());
 
         DocumentSnapshot todayLog = Tasks.await(
-                firestore.collection("users")
-                        .document(email)
-                        .collection("daily_logs")
-                        .document(todayKey)
-                        .get()
+            firestore.collection("users")
+                .document(email)
+                .collection("daily_logs")
+                .document(todayKey)
+                .get(),
+            10,
+            TimeUnit.SECONDS
         );
 
         if (!logReminderEnabled || todayLog.exists()) {
-            Tasks.await(
+                Tasks.await(
                     firestore.collection("users")
-                            .document(email)
-                            .collection("notifications")
-                            .document("missed_log_" + todayKey)
-                            .delete()
-            );
+                        .document(email)
+                        .collection("notifications")
+                        .document("missed_log_" + todayKey)
+                        .delete(),
+                    10,
+                    TimeUnit.SECONDS
+                );
             } else {
                 NotificationPublisher.publishSync(
                     context,
@@ -118,7 +123,9 @@ public class ScheduledNotificationWorker extends Worker {
             );
 
             DocumentSnapshot userDoc = Tasks.await(
-                firestore.collection("users").document(email).get()
+                firestore.collection("users").document(email).get(),
+                10,
+                TimeUnit.SECONDS
             );
             Double bmi = userDoc.getDouble("bmi");
             if (bmi != null && (bmi < 18.5 || bmi > 25.0)) {
@@ -139,7 +146,9 @@ public class ScheduledNotificationWorker extends Worker {
         FirebaseFirestore firestore = FirebaseFirestore.getInstance();
 
         DocumentSnapshot userDoc = Tasks.await(
-                firestore.collection("users").document(email).get()
+            firestore.collection("users").document(email).get(),
+            10,
+            TimeUnit.SECONDS
         );
 
         if (!userDoc.exists()) {
@@ -221,7 +230,9 @@ public class ScheduledNotificationWorker extends Worker {
         FirebaseFirestore firestore = FirebaseFirestore.getInstance();
 
         DocumentSnapshot userDoc = Tasks.await(
-                firestore.collection("users").document(email).get()
+            firestore.collection("users").document(email).get(),
+            10,
+            TimeUnit.SECONDS
         );
 
         if (!userDoc.exists()) {

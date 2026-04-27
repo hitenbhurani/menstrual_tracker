@@ -4,6 +4,8 @@ import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
@@ -40,6 +42,10 @@ import java.util.Map;
 public class CalendarFragment extends Fragment {
 
     private static final String TAG = "CalendarFragment";
+    
+    // Timeout protection for cloud saves
+    private final Handler timeoutHandler = new Handler(Looper.getMainLooper());
+    private static final long CLOUD_SAVE_TIMEOUT_MS = 15_000; // 15 seconds
 
     private TextView tvMonthYear;
     private RecyclerView calendarRecyclerView, rvRecentNotes;
@@ -100,6 +106,9 @@ public class CalendarFragment extends Fragment {
 
             @Override
             public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                if (e1 == null || e2 == null) {
+                    return false;
+                }
                 float diffX = e2.getX() - e1.getX();
                 if (Math.abs(diffX) > Math.abs(e2.getY() - e1.getY())) {
                     if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
@@ -118,7 +127,7 @@ public class CalendarFragment extends Fragment {
         View rootView = calendarRecyclerView.getRootView();
         rootView.setOnTouchListener((v, event) -> {
             gestureDetector.onTouchEvent(event);
-            return true;
+            return false;
         });
 
         calendarRecyclerView.addOnItemTouchListener(new RecyclerView.SimpleOnItemTouchListener() {
@@ -142,27 +151,43 @@ public class CalendarFragment extends Fragment {
 
     private void fetchUserData() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) return;
+        if (user == null || user.getEmail() == null || user.getEmail().trim().isEmpty()) {
+            buildCalendar();
+            return;
+        }
 
-        FirebaseFirestore.getInstance().collection("users").document(user.getEmail()).get()
+        FirebaseFirestore.getInstance().collection("users").document(user.getEmail().trim()).get()
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful() && task.getResult() != null) {
                         DocumentSnapshot doc = task.getResult();
                         if (doc.contains("lastPeriodStartMillis")) {
-                            lastPeriodMillis = normalizeToMidnight(doc.getLong("lastPeriodStartMillis"));
-                            cycleLength = doc.getLong("averageCycleLength").intValue();
-                            periodDuration = doc.getLong("periodDuration").intValue();
+                            Long fetchedLastPeriod = doc.getLong("lastPeriodStartMillis");
+                            Long fetchedCycleLength = doc.getLong("averageCycleLength");
+                            Long fetchedPeriodDuration = doc.getLong("periodDuration");
+
+                            if (fetchedLastPeriod != null) {
+                                lastPeriodMillis = normalizeToMidnight(fetchedLastPeriod);
+                            }
+
+                            if (fetchedCycleLength != null && fetchedCycleLength >= 20 && fetchedCycleLength <= 90) {
+                                cycleLength = fetchedCycleLength.intValue();
+                            }
+
+                            if (fetchedPeriodDuration != null && fetchedPeriodDuration >= 1 && fetchedPeriodDuration <= 15) {
+                                periodDuration = fetchedPeriodDuration.intValue();
+                            }
                         }
-                        buildCalendar();
                     }
+
+                    buildCalendar();
                 });
     }
 
     private void fetchRecentNotes() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) return;
+        if (user == null || user.getEmail() == null || user.getEmail().trim().isEmpty()) return;
 
-        FirebaseFirestore.getInstance().collection("users").document(user.getEmail())
+        FirebaseFirestore.getInstance().collection("users").document(user.getEmail().trim())
                 .collection("notes")
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .limit(10)
@@ -254,55 +279,47 @@ public class CalendarFragment extends Fragment {
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
 
             if (user != null && user.getEmail() != null) {
-                btnSaveEdits.setEnabled(false);
+                wrapCloudSaveWithTimeout(btnSaveEdits, () -> {
+                    Map<String, Object> updates = new HashMap<>();
+                    updates.put("lastPeriodStartMillis", newlySelectedMillis[0]);
+                    updates.put("averageCycleLength", newCycle);
 
-                Map<String, Object> updates = new HashMap<>();
-                updates.put("lastPeriodStartMillis", newlySelectedMillis[0]);
-                updates.put("averageCycleLength", newCycle);
+                    FirebaseFirestore firestore = FirebaseFirestore.getInstance();
 
-                FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+                    firestore.collection("users").document(user.getEmail().trim())
+                            .set(updates, SetOptions.merge())
+                            .addOnSuccessListener(aVoid -> {
+                                btnSaveEdits.setEnabled(true);
 
-                firestore.collection("users").document(user.getEmail())
-                        .update(updates)
-                        .addOnSuccessListener(aVoid -> {
-                            firestore.waitForPendingWrites()
-                                    .addOnSuccessListener(unused -> {
-                                        btnSaveEdits.setEnabled(true);
+                                if (!isAdded() || getContext() == null) {
+                                    return;
+                                }
 
-                                        if (!isAdded() || getContext() == null) {
-                                            return;
-                                        }
+                                FirebaseAuthState.clearAuthError(requireContext());
+                                Toast.makeText(getContext(), "Cycle updated!", Toast.LENGTH_SHORT).show();
 
-                                        FirebaseAuthState.clearAuthError(requireContext());
-                                        Toast.makeText(getContext(), "Cycle updated!", Toast.LENGTH_SHORT).show();
+                                try {
+                                    NotificationPublisher.publishForCurrentUser(
+                                            requireContext(),
+                                            "cycle_updated_" + System.currentTimeMillis(),
+                                            "Cycle Preferences Updated",
+                                            "Future reminders were refreshed using your new cycle details.",
+                                            "cycle",
+                                            true
+                                    );
 
-                                        NotificationPublisher.publishForCurrentUser(
-                                                requireContext(),
-                                                "cycle_updated_" + System.currentTimeMillis(),
-                                                "Cycle Preferences Updated",
-                                                "Future reminders were refreshed using your new cycle details.",
-                                                "cycle",
-                                                true
-                                        );
+                                    BackgroundTaskScheduler.scheduleAll(requireContext());
+                                    BackgroundTaskScheduler.enqueueImmediateSync(requireContext(), "cycle_data_updated");
+                                } catch (Exception e) {
+                                    Log.e(TAG, "Post-cycle update sync failed", e);
+                                }
 
-                                        BackgroundTaskScheduler.scheduleAll(requireContext());
-                                        BackgroundTaskScheduler.enqueueImmediateSync(requireContext(), "cycle_data_updated");
-
-                                        lastPeriodMillis = newlySelectedMillis[0];
-                                        cycleLength = newCycle;
-                                        adapter.notifyDataSetChanged();
-                                        editSheet.dismiss();
-                                    })
-                                    .addOnFailureListener(e -> {
-                                        btnSaveEdits.setEnabled(true);
-                                        Log.e(TAG, "Cycle update was not acknowledged by Firebase", e);
-                                        handleCloudSaveFailure(
-                                                e,
-                                                "Could not confirm cycle sync with Firebase. Please retry."
-                                        );
-                                    });
-                        })
-                        .addOnFailureListener(e -> {
+                                lastPeriodMillis = newlySelectedMillis[0];
+                                cycleLength = newCycle;
+                                buildCalendar();
+                                editSheet.dismiss();
+                            })
+                            .addOnFailureListener(e -> {
                             btnSaveEdits.setEnabled(true);
                             Log.e(TAG, "Failed to update cycle data", e);
                             handleCloudSaveFailure(
@@ -310,6 +327,7 @@ public class CalendarFragment extends Fragment {
                                     "Failed to update cycle. Please try again."
                             );
                         });
+                }, "Cycle edit");
             } else {
                 Toast.makeText(getContext(), "Please sign in again to update cycle data.", Toast.LENGTH_SHORT).show();
             }
@@ -332,11 +350,11 @@ public class CalendarFragment extends Fragment {
         String dbDateKey = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(selectedDate.getTime());
 
         tvTitle.setText(sdf.format(selectedDate.getTime()));
-        tvStatus.setText("Status: " + status);
+        tvStatus.setText(getString(R.string.note_sheet_status_format, status));
 
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user != null) {
-            FirebaseFirestore.getInstance().collection("users").document(user.getEmail())
+        if (user != null && user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+            FirebaseFirestore.getInstance().collection("users").document(user.getEmail().trim())
                     .collection("notes").document(dbDateKey).get().addOnSuccessListener(doc -> {
                         if (doc.exists() && doc.contains("noteText")) {
                             etNote.setText(doc.getString("noteText"));
@@ -352,61 +370,76 @@ public class CalendarFragment extends Fragment {
                 return;
             }
 
-            btnSave.setEnabled(false);
+            wrapCloudSaveWithTimeout(btnSave, () -> {
+                Map<String, Object> noteData = new HashMap<>();
+                noteData.put("noteText", note);
+                noteData.put("timestamp", System.currentTimeMillis());
 
-            Map<String, Object> noteData = new HashMap<>();
-            noteData.put("noteText", note);
-            noteData.put("timestamp", System.currentTimeMillis());
+                FirebaseFirestore firestore = FirebaseFirestore.getInstance();
 
-            FirebaseFirestore firestore = FirebaseFirestore.getInstance();
+                firestore.collection("users").document(currentUser.getEmail().trim())
+                        .collection("notes").document(dbDateKey)
+                        .set(noteData, SetOptions.merge())
+                        .addOnSuccessListener(aVoid -> {
+                            btnSave.setEnabled(true);
 
-            firestore.collection("users").document(currentUser.getEmail().trim())
-                    .collection("notes").document(dbDateKey)
-                    .set(noteData, SetOptions.merge())
-                    .addOnSuccessListener(aVoid -> {
-                        firestore.waitForPendingWrites()
-                                .addOnSuccessListener(unused -> {
-                                    btnSave.setEnabled(true);
+                            if (!isAdded() || getContext() == null) {
+                                return;
+                            }
 
-                                    if (!isAdded() || getContext() == null) {
-                                        return;
-                                    }
+                            FirebaseAuthState.clearAuthError(requireContext());
+                            Toast.makeText(getContext(), "Note saved securely!", Toast.LENGTH_SHORT).show();
 
-                                    FirebaseAuthState.clearAuthError(requireContext());
-                                    Toast.makeText(getContext(), "Note saved securely!", Toast.LENGTH_SHORT).show();
+                            try {
+                                NotificationPublisher.publishForCurrentUser(
+                                        getContext(),
+                                        "note_saved_" + dbDateKey + "_" + System.currentTimeMillis(),
+                                        "Calendar Note Saved",
+                                        "Your note for " + dbDateKey + " was saved.",
+                                        "note",
+                                        true
+                                );
+                            } catch (Exception e) {
+                                Log.e(TAG, "Post-note-save notification failed", e);
+                            }
 
-                                    NotificationPublisher.publishForCurrentUser(
-                                            getContext(),
-                                            "note_saved_" + dbDateKey + "_" + System.currentTimeMillis(),
-                                            "Calendar Note Saved",
-                                            "Your note for " + dbDateKey + " was saved.",
-                                            "note",
-                                            true
-                                    );
-
-                                    fetchRecentNotes();
-                                    bottomSheetDialog.dismiss();
-                                })
-                                .addOnFailureListener(e -> {
-                                    btnSave.setEnabled(true);
-                                    Log.e(TAG, "Note save was not acknowledged by Firebase", e);
-                                    handleCloudSaveFailure(
-                                            e,
-                                            "Could not confirm note sync with Firebase. Please retry."
-                                    );
-                                });
-                    })
-                    .addOnFailureListener(e -> {
-                        btnSave.setEnabled(true);
-                        Log.e(TAG, "Failed to save note", e);
-                        handleCloudSaveFailure(
+                            fetchRecentNotes();
+                            bottomSheetDialog.dismiss();
+                        })
+                        .addOnFailureListener(e -> {
+                            btnSave.setEnabled(true);
+                            Log.e(TAG, "Failed to save note", e);
+                            handleCloudSaveFailure(
                                 e,
                                 "Could not save note. Please try again."
                         );
                     });
+            }, "Note save");
         });
 
         bottomSheetDialog.show();
+    }
+
+    private void wrapCloudSaveWithTimeout(View triggerView, Runnable saveLogic, String operationName) {
+        triggerView.setEnabled(false);
+        
+        // Schedule timeout safety net
+        timeoutHandler.postDelayed(() -> {
+            if (!triggerView.isEnabled()) {
+                // Safety timeout triggered - re-enable button
+                triggerView.setEnabled(true);
+                if (isAdded() && getContext() != null) {
+                    Toast.makeText(
+                            getContext(),
+                            operationName + " taking longer than expected. Tap again to retry.",
+                            Toast.LENGTH_LONG
+                    ).show();
+                }
+            }
+        }, CLOUD_SAVE_TIMEOUT_MS);
+        
+        // Execute the actual save logic
+        saveLogic.run();
     }
 
     private class CalendarAdapter extends RecyclerView.Adapter<CalendarAdapter.CalendarViewHolder> {

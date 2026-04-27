@@ -14,6 +14,7 @@
 
     <queries>
         <package android:name="com.google.android.apps.maps" />
+        <package android:name="com.google.android.gms" />
     </queries>
 
     <application
@@ -27,6 +28,11 @@
         android:usesCleartextTraffic="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.FemCare">
+
+        <!-- Explicitly declare Google Play Services version to prevent SecurityException -->
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"

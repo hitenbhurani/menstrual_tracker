@@ -210,6 +210,8 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Developer controls removed from production layout: Force Sync and Reset Auth -->
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSignOut"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"

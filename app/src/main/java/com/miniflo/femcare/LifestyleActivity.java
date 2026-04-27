@@ -2,6 +2,9 @@ package com.miniflo.femcare;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
 import android.widget.Button;
@@ -14,6 +17,10 @@ import com.google.firebase.auth.FirebaseUser;
 import com.miniflo.femcare.viewmodel.AuthViewModel;
 
 public class LifestyleActivity extends AppCompatActivity {
+    
+    // Timeout protection for cloud saves
+    private Handler timeoutHandler = new Handler(Looper.getMainLooper());
+    private static final long CLOUD_SAVE_TIMEOUT_MS = 15_000; // 15 seconds
 
     private AuthViewModel authViewModel;
     private Button nextButton;
@@ -76,21 +83,48 @@ public class LifestyleActivity extends AppCompatActivity {
 
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
             if (user != null && user.getEmail() != null) {
-                nextButton.setEnabled(false);
-                authViewModel.updateLifestyleData(user.getEmail(), isPregnant, tryingToConceive, sleepHours, exerciseFrequency, success -> {
-                    if (success) {
-                        Intent intent = new Intent(LifestyleActivity.this, UneasinessActivity.class);
-                        startActivity(intent);
-                        finish();
-                    } else {
-                        nextButton.setEnabled(true);
-                        Toast.makeText(LifestyleActivity.this, "Failed to save lifestyle data. Try again.", Toast.LENGTH_SHORT).show();
-                    }
-                });
+                final String userEmail = user.getEmail();
+                final boolean finalIsPregnant = isPregnant;
+                final boolean finalTryingToConceive = tryingToConceive;
+                final int finalSleepHours = sleepHours;
+                final int finalExerciseFrequency = exerciseFrequency;
+
+                wrapCloudSaveWithTimeout(nextButton, () -> {
+                    authViewModel.updateLifestyleData(userEmail, finalIsPregnant, finalTryingToConceive, finalSleepHours, finalExerciseFrequency, success -> {
+                        if (success) {
+                            Intent intent = new Intent(LifestyleActivity.this, UneasinessActivity.class);
+                            startActivity(intent);
+                            finish();
+                        } else {
+                            nextButton.setEnabled(true);
+                            Toast.makeText(LifestyleActivity.this, "Failed to save lifestyle data. Try again.", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }, "Lifestyle info save");
             } else {
                 startActivity(new Intent(LifestyleActivity.this, LoginActivity.class));
                 finish();
             }
         });
+    }
+
+    private void wrapCloudSaveWithTimeout(View triggerView, Runnable saveLogic, String operationName) {
+        triggerView.setEnabled(false);
+        
+        // Schedule timeout safety net
+        timeoutHandler.postDelayed(() -> {
+            if (!triggerView.isEnabled()) {
+                // Safety timeout triggered - re-enable button
+                triggerView.setEnabled(true);
+                Toast.makeText(
+                        this,
+                        operationName + " taking longer than expected. Tap again to retry.",
+                        Toast.LENGTH_LONG
+                ).show();
+            }
+        }, CLOUD_SAVE_TIMEOUT_MS);
+        
+        // Execute the actual save logic
+        saveLogic.run();
     }
 }

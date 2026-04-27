@@ -18,8 +18,8 @@
         android:id="@+id/tvSheetDateTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Date"
-        android:textColor="#C2185B"
+        android:text="@string/note_sheet_date_placeholder"
+        android:textColor="@color/brand_primary"
         android:textSize="22sp"
         android:textStyle="bold" />
 
@@ -28,15 +28,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="Status: Fertile Window"
-        android:textColor="#424242"
+        android:text="@string/note_sheet_status_placeholder"
+        android:textColor="@color/text_primary"
         android:textSize="16sp" />
 
     <com.google.android.material.textfield.TextInputLayout
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
         android:layout_marginTop="24dp"
+        android:maxWidth="520dp"
         app:boxCornerRadiusTopStart="12dp"
         app:boxCornerRadiusTopEnd="12dp"
         app:boxCornerRadiusBottomStart="12dp"
@@ -46,18 +48,23 @@
             android:id="@+id/etNoteInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Add a private note about today..."
+            android:hint="@string/note_sheet_input_hint"
             android:inputType="textMultiLine"
-            android:minLines="3" />
+            android:minLines="3"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_secondary" />
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/btnSaveNote"
         android:layout_width="match_parent"
         android:layout_height="60dp"
+        android:layout_gravity="center_horizontal"
         android:layout_marginTop="24dp"
-        android:backgroundTint="#C2185B"
-        android:text="Save Note"
+        android:maxWidth="520dp"
+        android:backgroundTint="@color/brand_primary"
+        android:text="@string/note_sheet_save"
+        android:textColor="@color/on_brand_primary"
         android:textSize="18sp"
         app:cornerRadius="12dp" />
 

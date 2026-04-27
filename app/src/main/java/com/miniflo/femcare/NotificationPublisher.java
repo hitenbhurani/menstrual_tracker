@@ -2,6 +2,7 @@ package com.miniflo.femcare;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
@@ -14,6 +15,7 @@ import com.google.firebase.firestore.SetOptions;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public final class NotificationPublisher {
 
@@ -115,50 +117,51 @@ public final class NotificationPublisher {
             boolean showSystemNotification
     ) throws Exception {
         Context appContext = context.getApplicationContext();
+        
+        // ALWAYS save to local store first (offline-first pattern)
+        LocalNotificationStore.upsert(
+                appContext,
+                notificationId,
+                title,
+                message,
+                type,
+                false,
+                System.currentTimeMillis()
+        );
+        
+        // THEN attempt cloud sync with timeout
         DocumentReference docRef = FirebaseFirestore.getInstance()
                 .collection("users")
                 .document(email)
                 .collection("notifications")
                 .document(notificationId);
 
-        boolean exists;
         try {
-            exists = Tasks.await(docRef.get()).exists();
+            // Add explicit timeout for existence check
+            boolean exists = Tasks.await(docRef.get(), 10, TimeUnit.SECONDS).exists();
+            FirebaseAuthState.clearAuthError(appContext);
+            
+            if (exists) {
+                return; // Already exists, don't duplicate
+            }
+            
+            // Try to write to cloud with timeout
+            Tasks.await(docRef.set(buildPayload(title, message, type), SetOptions.merge()), 10, TimeUnit.SECONDS);
+            FirebaseAuthState.clearAuthError(appContext);
+            
         } catch (Exception e) {
             if (FirebaseAuthState.isAuthTokenError(e)) {
                 FirebaseAuthState.markAuthError(appContext);
+                Log.w("NotificationPublisher", "Auth token error during notification publish - using local store");
+            } else {
+                Log.w("NotificationPublisher", "Timeout or network error during notification publish - using local store");
             }
-            LocalNotificationStore.upsert(appContext, notificationId, title, message, type, false, System.currentTimeMillis());
-            if (showSystemNotification) {
-                showSystemNotificationOnce(appContext, notificationId, title, message);
-            }
-
-            if (FirebaseAuthState.isAuthTokenError(e)) {
-                return;
-            }
-            throw e;
+            // Local store already updated, so this is OK
         }
-
-        FirebaseAuthState.clearAuthError(appContext);
-
-        if (exists) {
-            return;
-        }
-
-        LocalNotificationStore.upsert(appContext, notificationId, title, message, type, false, System.currentTimeMillis());
+        
+        // Always show system notification if requested
         if (showSystemNotification) {
             showSystemNotificationOnce(appContext, notificationId, title, message);
-        }
-
-        try {
-            Tasks.await(docRef.set(buildPayload(title, message, type), SetOptions.merge()));
-            FirebaseAuthState.clearAuthError(appContext);
-        } catch (Exception e) {
-            if (FirebaseAuthState.isAuthTokenError(e)) {
-                FirebaseAuthState.markAuthError(appContext);
-                return;
-            }
-            throw e;
         }
     }
 

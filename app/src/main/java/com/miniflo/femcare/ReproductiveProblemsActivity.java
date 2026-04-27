@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
@@ -15,6 +17,10 @@ import com.google.firebase.auth.FirebaseUser;
 import com.miniflo.femcare.viewmodel.AuthViewModel;
 
 public class ReproductiveProblemsActivity extends AppCompatActivity {
+    
+    // Timeout protection for cloud saves
+    private Handler timeoutHandler = new Handler(Looper.getMainLooper());
+    private static final long CLOUD_SAVE_TIMEOUT_MS = 15_000; // 15 seconds
 
     private String selectedAnswer = "";
     private MaterialButton option1, option2, option3, option4;
@@ -53,18 +59,19 @@ public class ReproductiveProblemsActivity extends AppCompatActivity {
 
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
             if (user != null && user.getEmail() != null) {
-                nextButton.setEnabled(false);
-                authViewModel.updateReproductiveHealth(user.getEmail(), hasProblem, success -> {
-                    if (success) {
-                        Intent intent = new Intent(ReproductiveProblemsActivity.this, LifestyleActivity.class);
-                        startActivity(intent);
-                        overridePendingTransition(0, 0); // Forces immediate transition
-                        finish();
-                    } else {
-                        nextButton.setEnabled(true);
-                        Toast.makeText(ReproductiveProblemsActivity.this, "Failed to save data. Try again.", Toast.LENGTH_SHORT).show();
-                    }
-                });
+                wrapCloudSaveWithTimeout(nextButton, () -> {
+                    authViewModel.updateReproductiveHealth(user.getEmail(), hasProblem, success -> {
+                        if (success) {
+                            Intent intent = new Intent(ReproductiveProblemsActivity.this, LifestyleActivity.class);
+                            startActivity(intent);
+                            overridePendingTransition(0, 0); // Forces immediate transition
+                            finish();
+                        } else {
+                            nextButton.setEnabled(true);
+                            Toast.makeText(ReproductiveProblemsActivity.this, "Failed to save data. Try again.", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }, "Reproductive health save");
             } else {
                 startActivity(new Intent(ReproductiveProblemsActivity.this, LoginActivity.class));
                 finish();
@@ -85,5 +92,25 @@ public class ReproductiveProblemsActivity extends AppCompatActivity {
     private void resetButtonVisuals(MaterialButton button) {
         button.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FFFFFF")));
         button.setStrokeColor(ColorStateList.valueOf(Color.parseColor("#BDBDBD")));
+    }
+
+    private void wrapCloudSaveWithTimeout(View triggerView, Runnable saveLogic, String operationName) {
+        triggerView.setEnabled(false);
+        
+        // Schedule timeout safety net
+        timeoutHandler.postDelayed(() -> {
+            if (!triggerView.isEnabled()) {
+                // Safety timeout triggered - re-enable button
+                triggerView.setEnabled(true);
+                Toast.makeText(
+                        this,
+                        operationName + " taking longer than expected. Tap again to retry.",
+                        Toast.LENGTH_LONG
+                ).show();
+            }
+        }, CLOUD_SAVE_TIMEOUT_MS);
+        
+        // Execute the actual save logic
+        saveLogic.run();
     }
 }

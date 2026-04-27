@@ -1,6 +1,7 @@
 package com.miniflo.femcare;
 
 import android.content.Context;
+import android.content.ClipData;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
@@ -22,6 +23,8 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.core.content.FileProvider;
 import androidx.fragment.app.Fragment;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -193,6 +196,7 @@ public class SettingsFragment extends Fragment {
 
     private void setupClickListeners(View view) {
         btnEditProfile.setOnClickListener(v -> openEditProfileSheet());
+        
         view.findViewById(R.id.btnMedicalReports).setOnClickListener(v -> {
             Intent intent = new Intent(requireContext(), MedicalReportActivity.class);
             startActivity(intent);
@@ -206,6 +210,8 @@ public class SettingsFragment extends Fragment {
                         .setPositiveButton("Got it", null)
                         .show()
         );
+        
+        // Developer controls were removed from layout; production UI keeps only user-facing settings.
 
         view.findViewById(R.id.btnSignOut).setOnClickListener(v -> performSignOut());
     }
@@ -465,11 +471,27 @@ public class SettingsFragment extends Fragment {
 
     private void shareFile(File file) {
         Uri uri = FileProvider.getUriForFile(requireContext(), requireContext().getPackageName() + ".fileprovider", file);
-        Intent intent = new Intent(Intent.ACTION_SEND);
-        intent.setType("application/pdf");
-        intent.putExtra(Intent.EXTRA_STREAM, uri);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        startActivity(Intent.createChooser(intent, "Share Detailed FemCare Report"));
+        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+        shareIntent.setType("application/pdf");
+        shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
+        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        shareIntent.setClipData(ClipData.newRawUri("FemCare_Medical_Report", uri));
+
+        PackageManager packageManager = requireContext().getPackageManager();
+        for (ResolveInfo resolveInfo : packageManager.queryIntentActivities(shareIntent, PackageManager.MATCH_DEFAULT_ONLY)) {
+            if (resolveInfo.activityInfo != null && resolveInfo.activityInfo.packageName != null) {
+                requireContext().grantUriPermission(
+                        resolveInfo.activityInfo.packageName,
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                );
+            }
+        }
+
+        Intent chooser = Intent.createChooser(shareIntent, "Share Detailed FemCare Report");
+        chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        chooser.setClipData(ClipData.newRawUri("FemCare_Medical_Report", uri));
+        startActivity(chooser);
     }
 
     private void openEditProfileSheet() {

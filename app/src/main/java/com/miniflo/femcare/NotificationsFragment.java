@@ -119,9 +119,17 @@ public class NotificationsFragment extends Fragment {
                         Log.w(TAG, "Notifications listener failed", error);
                         if (FirebaseAuthState.isAuthTokenError(error)) {
                             FirebaseAuthState.markAuthError(requireContext());
+                            FirebaseAuthState.logAuthErrorDetail(requireContext(), error);
                             if (notificationsListener != null) {
                                 notificationsListener.remove();
                                 notificationsListener = null;
+                            }
+                            if (isAdded() && getContext() != null) {
+                                Toast.makeText(
+                                        getContext(),
+                                        "Firebase session issue detected. Showing cached notifications.",
+                                        Toast.LENGTH_SHORT
+                                ).show();
                             }
                         }
                         loadLocalNotifications();

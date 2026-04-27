@@ -4,10 +4,13 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -39,11 +42,14 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Marker;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * FindDoctorActivity - Hybrid OSM/Google Model
@@ -54,6 +60,7 @@ public class FindDoctorActivity extends AppCompatActivity {
 
     private static final int SEARCH_RADIUS_METERS = 10000; // 10km radius for suburban areas
     private static final String REQUEST_TAG = "OVERPASS_QUERY";
+    private static final GeoPoint DEFAULT_SEARCH_POINT = new GeoPoint(19.2049, 73.1867); // Fallback only when device location is unavailable.
     private static final String[] OVERPASS_ENDPOINTS = {
             "https://overpass-api.de/api/interpreter",
             "https://lz4.overpass-api.de/api/interpreter"
@@ -69,15 +76,20 @@ public class FindDoctorActivity extends AppCompatActivity {
 
     private ClinicAdapter clinicAdapter;
     private final List<Clinic> rawClinics = new ArrayList<>();
+    private final ExecutorService geocoderExecutor = Executors.newSingleThreadExecutor();
     private GeoPoint userGeoPoint;
+    private String searchAreaName = "";
+    private String searchCenterMarkerTitle = "You are here";
 
     private final ActivityResultLauncher<String[]> locationPermissionLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(),
             result -> {
-                if (Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_FINE_LOCATION))) {
+                boolean fineGranted = Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_FINE_LOCATION));
+                boolean coarseGranted = Boolean.TRUE.equals(result.get(Manifest.permission.ACCESS_COARSE_LOCATION));
+                if (fineGranted || coarseGranted) {
                     fetchLocationAndClinics();
                 } else {
-                    showEmptyState("Location permission is required to find clinics.");
+                    loadClinicsUsingDefaultLocation("Location permission denied. Showing clinics near a default area.");
                 }
             }
     );
@@ -136,10 +148,15 @@ public class FindDoctorActivity extends AppCompatActivity {
     }
 
     private void ensurePermissionsAndLoad() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        boolean fineGranted = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        boolean coarseGranted = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        if (fineGranted || coarseGranted) {
             fetchLocationAndClinics();
         } else {
-            locationPermissionLauncher.launch(new String[]{Manifest.permission.ACCESS_FINE_LOCATION});
+            locationPermissionLauncher.launch(new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+            });
         }
     }
 
@@ -147,20 +164,84 @@ public class FindDoctorActivity extends AppCompatActivity {
         showLoading(true);
         CancellationTokenSource tokenSource = new CancellationTokenSource();
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return;
+        boolean fineGranted = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        boolean coarseGranted = ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+
+        if (!fineGranted && !coarseGranted) {
+            loadClinicsUsingDefaultLocation("Location permission unavailable. Showing clinics near a default area.");
+            return;
+        }
 
         fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, tokenSource.getToken())
                 .addOnSuccessListener(location -> {
                     if (location != null) {
                         userGeoPoint = new GeoPoint(location.getLatitude(), location.getLongitude());
+                        searchCenterMarkerTitle = "You are here";
                         mapView.getController().animateTo(userGeoPoint);
                         addMarker(userGeoPoint, "You are here", true);
-                        fetchClinicData();
+                        resolveSearchAreaAndFetchClinics(userGeoPoint);
                     } else {
-                        showLoading(false);
-                        showEmptyState("Could not fix GPS. Check your location settings.");
+                        loadClinicsUsingDefaultLocation("Using default location because GPS is unavailable.");
                     }
+                })
+                .addOnFailureListener(e -> {
+                    loadClinicsUsingDefaultLocation("Location unavailable. Loaded nearby clinics from a default area.");
                 });
+    }
+
+    private void loadClinicsUsingDefaultLocation(String message) {
+        showLoading(true);
+        userGeoPoint = DEFAULT_SEARCH_POINT;
+        searchCenterMarkerTitle = "Search center";
+        mapView.getController().animateTo(userGeoPoint);
+        addMarker(userGeoPoint, "Search center", true);
+        if (message != null && !message.trim().isEmpty()) {
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        }
+        resolveSearchAreaAndFetchClinics(userGeoPoint);
+    }
+
+    private void resolveSearchAreaAndFetchClinics(GeoPoint point) {
+        searchAreaName = "";
+        geocoderExecutor.execute(() -> {
+            String areaName = reverseGeocodeAreaName(point);
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+
+                searchAreaName = areaName;
+                fetchClinicData();
+            });
+        });
+    }
+
+    private String reverseGeocodeAreaName(GeoPoint point) {
+        if (!Geocoder.isPresent()) return "";
+
+        try {
+            Geocoder geocoder = new Geocoder(getApplicationContext(), Locale.getDefault());
+            List<Address> addresses = geocoder.getFromLocation(point.getLatitude(), point.getLongitude(), 1);
+            if (addresses == null || addresses.isEmpty()) return "";
+
+            Address address = addresses.get(0);
+            String area = firstNonEmpty(
+                    address.getSubLocality(),
+                    address.getLocality(),
+                    address.getSubAdminArea(),
+                    address.getAdminArea()
+            );
+            String city = firstNonEmpty(
+                    address.getLocality(),
+                    address.getSubAdminArea(),
+                    address.getAdminArea()
+            );
+
+            if (!isBlank(area) && !isBlank(city) && !area.equalsIgnoreCase(city)) {
+                return area + ", " + city;
+            }
+            return area;
+        } catch (IOException | IllegalArgumentException e) {
+            return "";
+        }
     }
 
     private void fetchClinicData() {
@@ -199,6 +280,9 @@ public class FindDoctorActivity extends AppCompatActivity {
         JSONArray elements = response.optJSONArray("elements");
         rawClinics.clear();
         mapView.getOverlays().clear();
+        if (userGeoPoint != null) {
+            addMarker(userGeoPoint, searchCenterMarkerTitle, true);
+        }
 
         if (elements != null && elements.length() > 0) {
             for (int i = 0; i < elements.length(); i++) {
@@ -223,11 +307,7 @@ public class FindDoctorActivity extends AppCompatActivity {
 
                 Clinic c = new Clinic();
                 c.setName(tags != null ? tags.optString("name", "Medical Center") : "Medical Center");
-
-                // ENHANCED ADDRESS: Combine street and suburb for Google Maps search reliability
-                String street = tags != null ? tags.optString("addr:street", "") : "";
-                String suburb = tags != null ? tags.optString("addr:suburb", "Ambernath") : "Ambernath";
-                c.setAddress(street.isEmpty() ? suburb : street + ", " + suburb);
+                c.setAddress(buildClinicAddress(tags));
 
                 c.setLatitude(lat);
                 c.setLongitude(lon);
@@ -247,6 +327,57 @@ public class FindDoctorActivity extends AppCompatActivity {
             showEmptyState("No clinics found within 10km.");
         }
         mapView.invalidate();
+    }
+
+    private String buildClinicAddress(JSONObject tags) {
+        String fullAddress = getTagValue(tags, "addr:full");
+        if (!isBlank(fullAddress)) return fullAddress;
+
+        List<String> addressParts = new ArrayList<>();
+        addAddressPart(addressParts, getTagValue(tags, "addr:housenumber"));
+        addAddressPart(addressParts, getTagValue(tags, "addr:street"));
+        addAddressPart(addressParts, getTagValue(tags, "addr:neighbourhood"));
+        addAddressPart(addressParts, getTagValue(tags, "addr:suburb"));
+        addAddressPart(addressParts, getTagValue(tags, "addr:place"));
+        addAddressPart(addressParts, getTagValue(tags, "addr:city"));
+        addAddressPart(addressParts, getTagValue(tags, "addr:town"));
+        addAddressPart(addressParts, getTagValue(tags, "addr:village"));
+        addAddressPart(addressParts, getTagValue(tags, "addr:district"));
+
+        if (!addressParts.isEmpty()) {
+            return TextUtils.join(", ", addressParts);
+        }
+
+        if (!isBlank(searchAreaName)) {
+            return searchAreaName;
+        }
+
+        return "Nearby area";
+    }
+
+    private String getTagValue(JSONObject tags, String key) {
+        return tags != null ? tags.optString(key, "").trim() : "";
+    }
+
+    private void addAddressPart(List<String> addressParts, String value) {
+        if (isBlank(value)) return;
+
+        String trimmedValue = value.trim();
+        for (String existingPart : addressParts) {
+            if (existingPart.equalsIgnoreCase(trimmedValue)) return;
+        }
+        addressParts.add(trimmedValue);
+    }
+
+    private String firstNonEmpty(String... values) {
+        for (String value : values) {
+            if (!isBlank(value)) return value.trim();
+        }
+        return "";
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private void addMarker(GeoPoint point, String title, boolean isUser) {
@@ -293,6 +424,7 @@ public class FindDoctorActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        geocoderExecutor.shutdownNow();
         mapView.onDetach();
         super.onDestroy();
     }

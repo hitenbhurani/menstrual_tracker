@@ -191,6 +191,7 @@ import com.google.android.material.button.MaterialButton;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * ClinicAdapter - Hybrid Model Logic
@@ -225,13 +226,29 @@ public class ClinicAdapter extends RecyclerView.Adapter<ClinicAdapter.ClinicView
             public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
                 Clinic oldItem = oldList.get(oldItemPosition);
                 Clinic newItem = updatedList.get(newItemPosition);
+                String oldPlaceId = oldItem.getPlaceId();
+                String newPlaceId = newItem.getPlaceId();
+                if (oldPlaceId != null && !oldPlaceId.isEmpty() && newPlaceId != null && !newPlaceId.isEmpty()) {
+                    return oldPlaceId.equals(newPlaceId);
+                }
+
                 return oldItem.getLatitude() == newItem.getLatitude() &&
                         oldItem.getLongitude() == newItem.getLongitude();
             }
 
             @Override
             public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {
-                return oldList.get(oldItemPosition).getName().equals(updatedList.get(newItemPosition).getName());
+                Clinic oldItem = oldList.get(oldItemPosition);
+                Clinic newItem = updatedList.get(newItemPosition);
+
+                return Objects.equals(oldItem.getName(), newItem.getName())
+                        && Objects.equals(oldItem.getAddress(), newItem.getAddress())
+                        && Float.compare(oldItem.getRating(), newItem.getRating()) == 0
+                        && oldItem.getReviewCount() == newItem.getReviewCount()
+                        && Float.compare(oldItem.getDistanceKm(), newItem.getDistanceKm()) == 0
+                        && oldItem.isOpenNow() == newItem.isOpenNow()
+                        && oldItem.isOpenStatusKnown() == newItem.isOpenStatusKnown()
+                        && oldItem.isWellKnown() == newItem.isWellKnown();
             }
         });
 
@@ -253,8 +270,10 @@ public class ClinicAdapter extends RecyclerView.Adapter<ClinicAdapter.ClinicView
         Context context = holder.itemView.getContext();
 
         holder.tvClinicName.setText(clinic.getName());
-        holder.tvDistance.setText(String.format(Locale.getDefault(), "%.2f km away", clinic.getDistanceKm()));
+        setOptionalText(holder.tvRatingReviews, buildRatingText(context, clinic));
+        holder.tvDistance.setText(context.getString(R.string.distance_km_away_format, clinic.getDistanceKm()));
         holder.tvAddress.setText(clinic.getAddress());
+        setOptionalText(holder.tvOpenStatus, buildOpenStatusText(context, clinic));
 
         // PRECISE DIRECTIONS LOGIC
         holder.btnDirections.setOnClickListener(v -> {
@@ -282,15 +301,61 @@ public class ClinicAdapter extends RecyclerView.Adapter<ClinicAdapter.ClinicView
     @Override
     public int getItemCount() { return clinics.size(); }
 
+    private String buildRatingText(Context context, Clinic clinic) {
+        String ratingText;
+        if (clinic.getRating() <= 0f || clinic.getReviewCount() <= 0) {
+            return "";
+        } else {
+            ratingText = context.getString(
+                    R.string.rating_reviews_format,
+                    clinic.getRating(),
+                    clinic.getReviewCount()
+            );
+        }
+
+        if (clinic.isWellKnown()) {
+            return String.format(
+                    Locale.getDefault(),
+                    "%s - %s",
+                    ratingText,
+                    context.getString(R.string.well_known_label)
+            );
+        }
+        return ratingText;
+    }
+
+    private String buildOpenStatusText(Context context, Clinic clinic) {
+        if (!clinic.isOpenStatusKnown()) {
+            return "";
+        }
+
+        return clinic.isOpenNow()
+                ? context.getString(R.string.open_now)
+                : context.getString(R.string.closed_now);
+    }
+
+    private void setOptionalText(TextView textView, String text) {
+        if (text == null || text.trim().isEmpty()) {
+            textView.setVisibility(View.GONE);
+            textView.setText("");
+            return;
+        }
+
+        textView.setVisibility(View.VISIBLE);
+        textView.setText(text);
+    }
+
     public static class ClinicViewHolder extends RecyclerView.ViewHolder {
-        TextView tvClinicName, tvDistance, tvAddress;
+        TextView tvClinicName, tvRatingReviews, tvDistance, tvAddress, tvOpenStatus;
         MaterialButton btnDirections;
 
         public ClinicViewHolder(@NonNull View itemView) {
             super(itemView);
             tvClinicName = itemView.findViewById(R.id.tvClinicName);
+            tvRatingReviews = itemView.findViewById(R.id.tvRatingReviews);
             tvDistance = itemView.findViewById(R.id.tvDistance);
             tvAddress = itemView.findViewById(R.id.tvAddress);
+            tvOpenStatus = itemView.findViewById(R.id.tvOpenStatus);
             btnDirections = itemView.findViewById(R.id.btnDirections);
         }
     }

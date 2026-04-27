@@ -10,6 +10,7 @@ public class Clinic {
     private double latitude;
     private double longitude;
     private boolean openNow;
+    private boolean openStatusKnown;
     private float distanceKm;
     private boolean wellKnown;
 
@@ -24,6 +25,7 @@ public class Clinic {
         this.reviewCount = reviewCount;
         this.distanceKm = distanceKm;
         this.openNow = openNow;
+        this.openStatusKnown = true;
         this.latitude = latitude;
         this.longitude = longitude;
         this.wellKnown = reviewCount >= 50;
@@ -91,6 +93,14 @@ public class Clinic {
 
     public void setOpenNow(boolean openNow) {
         this.openNow = openNow;
+    }
+
+    public boolean isOpenStatusKnown() {
+        return openStatusKnown;
+    }
+
+    public void setOpenStatusKnown(boolean openStatusKnown) {
+        this.openStatusKnown = openStatusKnown;
     }
 
     public float getDistanceKm() {

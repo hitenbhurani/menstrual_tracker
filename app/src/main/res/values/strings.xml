@@ -9,11 +9,12 @@
 
     <string name="nearby_help_title">Nearby Gynecologists &amp; Clinics</string>
     <string name="chip_sort_distance">Distance</string>
-    <string name="chip_filter_rating">&gt; 4.0 Stars</string>
-    <string name="chip_filter_well_known">Well-Known (50+ reviews)</string>
+    <string name="chip_filter_rating">4.0+ Stars</string>
+    <string name="chip_filter_well_known">Well-Known (4.0+, 50+)</string>
     <string name="chip_filter_open_now">Open Now</string>
     <string name="empty_no_clinics">No clinics found in your area.</string>
     <string name="filtered_no_results">No clinics match the selected filters.</string>
+    <string name="rating_filter_unavailable">Google place data is unavailable, so rating and open-now filters are disabled.</string>
 
     <string name="map_unavailable_now">Map unavailable right now</string>
     <string name="map_unavailable_device">Map unavailable on this device</string>
@@ -28,6 +29,7 @@
     <string name="google_api_key_missing">Google API key not found.</string>
     <string name="error_load_clinics">Unable to load clinics. Check internet and API key settings.</string>
     <string name="error_places_status">Unable to load clinics right now (%1$s).</string>
+    <string name="error_places_status_with_message">Unable to load Google Places (%1$s): %2$s</string>
 
     <string name="unknown_clinic">Unknown Clinic</string>
     <string name="address_unavailable">Address unavailable</string>
@@ -36,12 +38,14 @@
     <string name="no_maps_app">No maps app found for directions</string>
 
     <string name="rating_unavailable">Rating and review data unavailable</string>
-    <string name="rating_reviews_format">%1$.1f ★ (%2$d reviews)</string>
+    <string name="rating_reviews_format">%1$.1f stars (%2$d reviews)</string>
     <string name="distance_km_away_format">%1$.1f km away</string>
     <string name="open_now">Open now</string>
-    <string name="closed_or_unavailable">Closed / status unavailable</string>
+    <string name="closed_now">Closed now</string>
+    <string name="hours_unavailable">Hours unavailable</string>
+    <string name="closed_or_unavailable">Hours unavailable</string>
     <string name="well_known_label">Well Known</string>
-    <string name="map_snippet_format">%1$.1f ★ • %2$d reviews</string>
+    <string name="map_snippet_format">%1$.1f stars - %2$d reviews</string>
 
     <!-- Registration Strings -->
     <string name="create_account">Create Account</string>

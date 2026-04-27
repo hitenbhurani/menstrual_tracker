@@ -2,6 +2,7 @@ package com.miniflo.femcare;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.location.Address;
@@ -9,7 +10,6 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.ProgressBar;
@@ -33,6 +33,7 @@ import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 import com.google.android.gms.tasks.CancellationTokenSource;
+import com.google.android.material.chip.Chip;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -44,8 +45,6 @@ import org.osmdroid.views.overlay.Marker;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -59,7 +58,11 @@ import java.util.concurrent.Executors;
 public class FindDoctorActivity extends AppCompatActivity {
 
     private static final int SEARCH_RADIUS_METERS = 10000; // 10km radius for suburban areas
+    private static final float MIN_GOOGLE_RATING = 4.0f;
+    private static final int MIN_WELL_KNOWN_REVIEW_COUNT = 50;
     private static final String REQUEST_TAG = "OVERPASS_QUERY";
+    private static final String GOOGLE_MAPS_API_KEY_META_DATA = "com.google.android.geo.API_KEY";
+    private static final String PLACES_ENDPOINT = "https://maps.googleapis.com/maps/api/place/nearbysearch/json";
     private static final GeoPoint DEFAULT_SEARCH_POINT = new GeoPoint(19.2049, 73.1867); // Fallback only when device location is unavailable.
     private static final String[] OVERPASS_ENDPOINTS = {
             "https://overpass-api.de/api/interpreter",
@@ -73,6 +76,10 @@ public class FindDoctorActivity extends AppCompatActivity {
     private RecyclerView recyclerClinics;
     private TextView tvEmptyState;
     private ProgressBar progressClinics;
+    private Chip chipSortDistance;
+    private Chip chipFilterRating;
+    private Chip chipFilterWellKnown;
+    private Chip chipFilterOpenNow;
 
     private ClinicAdapter clinicAdapter;
     private final List<Clinic> rawClinics = new ArrayList<>();
@@ -80,6 +87,7 @@ public class FindDoctorActivity extends AppCompatActivity {
     private GeoPoint userGeoPoint;
     private String searchAreaName = "";
     private String searchCenterMarkerTitle = "You are here";
+    private boolean googleRatingDataLoaded = false;
 
     private final ActivityResultLauncher<String[]> locationPermissionLauncher = registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(),
@@ -97,7 +105,7 @@ public class FindDoctorActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         // OSM Configuration must load BEFORE setContentView
-        Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this));
+        Configuration.getInstance().load(this, getSharedPreferences("osmdroid", MODE_PRIVATE));
         Configuration.getInstance().setUserAgentValue(getPackageName());
 
         super.onCreate(savedInstanceState);
@@ -107,6 +115,7 @@ public class FindDoctorActivity extends AppCompatActivity {
 
         initViews();
         setupRecyclerView();
+        setupFilterChips();
         setupMapView();
 
         ensurePermissionsAndLoad();
@@ -117,6 +126,10 @@ public class FindDoctorActivity extends AppCompatActivity {
         recyclerClinics = findViewById(R.id.recyclerClinics);
         tvEmptyState = findViewById(R.id.tvEmptyState);
         progressClinics = findViewById(R.id.progressClinics);
+        chipSortDistance = findViewById(R.id.chipSortDistance);
+        chipFilterRating = findViewById(R.id.chipFilterRating);
+        chipFilterWellKnown = findViewById(R.id.chipFilterWellKnown);
+        chipFilterOpenNow = findViewById(R.id.chipFilterOpenNow);
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         requestQueue = Volley.newRequestQueue(this);
@@ -137,6 +150,15 @@ public class FindDoctorActivity extends AppCompatActivity {
         });
         recyclerClinics.setLayoutManager(new LinearLayoutManager(this));
         recyclerClinics.setAdapter(clinicAdapter);
+    }
+
+    private void setupFilterChips() {
+        View.OnClickListener listener = view -> applyClinicFilters();
+        chipSortDistance.setOnClickListener(listener);
+        chipFilterRating.setOnClickListener(listener);
+        chipFilterWellKnown.setOnClickListener(listener);
+        chipFilterOpenNow.setOnClickListener(listener);
+        setGoogleFilterChipsEnabled(false);
     }
 
     private void setupMapView() {
@@ -178,15 +200,13 @@ public class FindDoctorActivity extends AppCompatActivity {
                         userGeoPoint = new GeoPoint(location.getLatitude(), location.getLongitude());
                         searchCenterMarkerTitle = "You are here";
                         mapView.getController().animateTo(userGeoPoint);
-                        addMarker(userGeoPoint, "You are here", true);
+                        addSearchCenterMarker(userGeoPoint, "You are here");
                         resolveSearchAreaAndFetchClinics(userGeoPoint);
                     } else {
                         loadClinicsUsingDefaultLocation("Using default location because GPS is unavailable.");
                     }
                 })
-                .addOnFailureListener(e -> {
-                    loadClinicsUsingDefaultLocation("Location unavailable. Loaded nearby clinics from a default area.");
-                });
+                .addOnFailureListener(e -> loadClinicsUsingDefaultLocation("Location unavailable. Loaded nearby clinics from a default area."));
     }
 
     private void loadClinicsUsingDefaultLocation(String message) {
@@ -194,7 +214,7 @@ public class FindDoctorActivity extends AppCompatActivity {
         userGeoPoint = DEFAULT_SEARCH_POINT;
         searchCenterMarkerTitle = "Search center";
         mapView.getController().animateTo(userGeoPoint);
-        addMarker(userGeoPoint, "Search center", true);
+        addSearchCenterMarker(userGeoPoint, "Search center");
         if (message != null && !message.trim().isEmpty()) {
             Toast.makeText(this, message, Toast.LENGTH_LONG).show();
         }
@@ -214,6 +234,7 @@ public class FindDoctorActivity extends AppCompatActivity {
         });
     }
 
+    @SuppressWarnings("deprecation")
     private String reverseGeocodeAreaName(GeoPoint point) {
         if (!Geocoder.isPresent()) return "";
 
@@ -245,6 +266,116 @@ public class FindDoctorActivity extends AppCompatActivity {
     }
 
     private void fetchClinicData() {
+        String googleApiKey = getGoogleMapsApiKey();
+        if (!isBlank(googleApiKey)) {
+            setGoogleFilterChipsEnabled(false);
+            fetchGoogleClinicData(googleApiKey);
+            return;
+        }
+
+        googleRatingDataLoaded = false;
+        setGoogleFilterChipsEnabled(false);
+        fetchOsmClinicData();
+    }
+
+    private void fetchGoogleClinicData(String googleApiKey) {
+        String url = String.format(Locale.US,
+                "%s?location=%.6f,%.6f&radius=%d&keyword=%s&key=%s",
+                PLACES_ENDPOINT,
+                userGeoPoint.getLatitude(),
+                userGeoPoint.getLongitude(),
+                SEARCH_RADIUS_METERS,
+                Uri.encode("gynecologist clinic hospital"),
+                Uri.encode(googleApiKey));
+
+        JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
+                response -> {
+                    if (parseGooglePlacesResponse(response)) {
+                        showLoading(false);
+                    } else {
+                        setGoogleFilterChipsEnabled(false);
+                        fetchOsmClinicData();
+                    }
+                },
+                error -> {
+                    googleRatingDataLoaded = false;
+                    setGoogleFilterChipsEnabled(false);
+                    fetchOsmClinicData();
+                });
+
+        request.setRetryPolicy(new DefaultRetryPolicy(20000, 1, 1.0f));
+        request.setTag(REQUEST_TAG);
+        requestQueue.add(request);
+    }
+
+    private boolean parseGooglePlacesResponse(JSONObject response) {
+        String status = response.optString("status", "");
+        if ("ZERO_RESULTS".equals(status)) {
+            googleRatingDataLoaded = false;
+            return false;
+        }
+
+        if (!"OK".equals(status)) {
+            googleRatingDataLoaded = false;
+            if (!isBlank(status)) {
+                Toast.makeText(this, buildGooglePlacesIssue(response, status), Toast.LENGTH_LONG).show();
+            }
+            return false;
+        }
+
+        JSONArray results = response.optJSONArray("results");
+        googleRatingDataLoaded = true;
+        setGoogleFilterChipsEnabled(true);
+        rawClinics.clear();
+
+        if (results != null) {
+            for (int i = 0; i < results.length(); i++) {
+                JSONObject place = results.optJSONObject(i);
+                if (place == null) continue;
+
+                String businessStatus = place.optString("business_status", "");
+                if ("CLOSED_PERMANENTLY".equals(businessStatus)) continue;
+
+                JSONObject geometry = place.optJSONObject("geometry");
+                JSONObject location = geometry != null ? geometry.optJSONObject("location") : null;
+                if (location == null) continue;
+
+                double lat = location.optDouble("lat", Double.NaN);
+                double lon = location.optDouble("lng", Double.NaN);
+                if (Double.isNaN(lat) || Double.isNaN(lon)) continue;
+
+                float rating = (float) place.optDouble("rating", 0);
+                int reviewCount = place.optInt("user_ratings_total", 0);
+                JSONObject openingHours = place.optJSONObject("opening_hours");
+                boolean openStatusKnown = openingHours != null && openingHours.has("open_now");
+
+                Clinic clinic = new Clinic();
+                clinic.setPlaceId(place.optString("place_id", ""));
+                clinic.setName(place.optString("name", getString(R.string.unknown_clinic)));
+                clinic.setAddress(firstNonEmpty(
+                        place.optString("vicinity", ""),
+                        place.optString("formatted_address", ""),
+                        searchAreaName,
+                        getString(R.string.address_unavailable)
+                ));
+                clinic.setRating(rating);
+                clinic.setReviewCount(reviewCount);
+                clinic.setWellKnown(rating >= MIN_GOOGLE_RATING && reviewCount >= MIN_WELL_KNOWN_REVIEW_COUNT);
+                clinic.setOpenStatusKnown(openStatusKnown);
+                clinic.setOpenNow(openStatusKnown && openingHours.optBoolean("open_now", false));
+                clinic.setLatitude(lat);
+                clinic.setLongitude(lon);
+                clinic.setDistanceKm(calculateDistanceKm(lat, lon));
+
+                rawClinics.add(clinic);
+            }
+        }
+
+        applyClinicFilters();
+        return true;
+    }
+
+    private void fetchOsmClinicData() {
         // Broad search query for medical amenities in suburban areas
         String query = String.format(Locale.US,
                 "[out:json][timeout:25];(node[\"amenity\"~\"hospital|clinic|doctors\"](around:%d,%.6f,%.6f);way[\"amenity\"~\"hospital|clinic|doctors\"](around:%d,%.6f,%.6f););out center;",
@@ -265,7 +396,7 @@ public class FindDoctorActivity extends AppCompatActivity {
 
         JsonObjectRequest request = new JsonObjectRequest(Request.Method.GET, url, null,
                 response -> {
-                    parseResponse(response);
+                    parseOsmResponse(response);
                     showLoading(false);
                 },
                 error -> tryRequest(query, endpointIndex + 1));
@@ -276,21 +407,20 @@ public class FindDoctorActivity extends AppCompatActivity {
         requestQueue.add(request);
     }
 
-    private void parseResponse(JSONObject response) {
+    private void parseOsmResponse(JSONObject response) {
         JSONArray elements = response.optJSONArray("elements");
+        googleRatingDataLoaded = false;
+        setGoogleFilterChipsEnabled(false);
         rawClinics.clear();
-        mapView.getOverlays().clear();
-        if (userGeoPoint != null) {
-            addMarker(userGeoPoint, searchCenterMarkerTitle, true);
-        }
 
         if (elements != null && elements.length() > 0) {
             for (int i = 0; i < elements.length(); i++) {
                 JSONObject obj = elements.optJSONObject(i);
+                if (obj == null) continue;
+
                 JSONObject tags = obj.optJSONObject("tags");
 
-                // PRECISE COORDINATE FIX:
-                // Ways (buildings) in OSM use a \u0027center\u0027 object, Nodes use \u0027lat/lon\u0027
+                // Ways in OSM use a "center" object; nodes use "lat/lon".
                 double lat = obj.optDouble("lat", Double.NaN);
                 double lon = obj.optDouble("lon", Double.NaN);
 
@@ -302,7 +432,7 @@ public class FindDoctorActivity extends AppCompatActivity {
                     }
                 }
 
-                // Skip if we still don\u0027t have valid coordinates to prevent "BS" locations
+                // Skip if we still do not have valid coordinates.
                 if (Double.isNaN(lat) || lat == 0) continue;
 
                 Clinic c = new Clinic();
@@ -311,22 +441,153 @@ public class FindDoctorActivity extends AppCompatActivity {
 
                 c.setLatitude(lat);
                 c.setLongitude(lon);
-
-                float[] distResults = new float[1];
-                Location.distanceBetween(userGeoPoint.getLatitude(), userGeoPoint.getLongitude(), lat, lon, distResults);
-                c.setDistanceKm(distResults[0] / 1000f);
+                c.setRating(0f);
+                c.setReviewCount(0);
+                c.setOpenStatusKnown(false);
+                c.setOpenNow(false);
+                c.setWellKnown(false);
+                c.setDistanceKm(calculateDistanceKm(lat, lon));
 
                 rawClinics.add(c);
-                addMarker(new GeoPoint(lat, lon), c.getName(), false);
             }
+        }
 
-            Collections.sort(rawClinics, Comparator.comparingDouble(Clinic::getDistanceKm));
-            clinicAdapter.submitList(new ArrayList<>(rawClinics));
-            showEmptyState(null);
+        applyClinicFilters();
+    }
+
+    private void applyClinicFilters() {
+        boolean sortByDistance = chipSortDistance == null || chipSortDistance.isChecked();
+        boolean requireRating = chipFilterRating != null && chipFilterRating.isChecked();
+        boolean requireWellKnown = chipFilterWellKnown != null && chipFilterWellKnown.isChecked();
+        boolean requireOpenNow = chipFilterOpenNow != null && chipFilterOpenNow.isChecked();
+        if (!googleRatingDataLoaded) {
+            requireRating = false;
+            requireWellKnown = false;
+            requireOpenNow = false;
+        }
+
+        List<Clinic> filteredClinics = new ArrayList<>();
+        for (Clinic clinic : rawClinics) {
+            if (requireRating && clinic.getRating() < MIN_GOOGLE_RATING) continue;
+            if (requireWellKnown && !clinic.isWellKnown()) continue;
+            if (requireOpenNow && (!clinic.isOpenStatusKnown() || !clinic.isOpenNow())) continue;
+            filteredClinics.add(clinic);
+        }
+
+        if (sortByDistance) {
+            filteredClinics.sort(this::compareByDistanceThenRating);
         } else {
+            filteredClinics.sort(this::compareByRatingThenDistance);
+        }
+
+        clinicAdapter.submitList(filteredClinics);
+        renderClinicMarkers(filteredClinics);
+
+        if (rawClinics.isEmpty()) {
             showEmptyState("No clinics found within 10km.");
+        } else if (filteredClinics.isEmpty()) {
+            if ((requireRating || requireWellKnown || requireOpenNow) && !googleRatingDataLoaded) {
+                showEmptyState(getString(R.string.rating_filter_unavailable));
+            } else {
+                showEmptyState(getString(R.string.filtered_no_results));
+            }
+        } else {
+            showEmptyState(null);
+        }
+    }
+
+    private int compareByDistanceThenRating(Clinic first, Clinic second) {
+        int distanceCompare = Float.compare(first.getDistanceKm(), second.getDistanceKm());
+        if (distanceCompare != 0) return distanceCompare;
+        return compareByRatingThenDistance(first, second);
+    }
+
+    private int compareByRatingThenDistance(Clinic first, Clinic second) {
+        int ratingCompare = Float.compare(second.getRating(), first.getRating());
+        if (ratingCompare != 0) return ratingCompare;
+
+        int reviewCompare = Integer.compare(second.getReviewCount(), first.getReviewCount());
+        if (reviewCompare != 0) return reviewCompare;
+
+        return Float.compare(first.getDistanceKm(), second.getDistanceKm());
+    }
+
+    private void renderClinicMarkers(List<Clinic> clinics) {
+        mapView.getOverlays().clear();
+        if (userGeoPoint != null) {
+            addSearchCenterMarker(userGeoPoint, searchCenterMarkerTitle);
+        }
+
+        for (Clinic clinic : clinics) {
+            addClinicMarker(clinic);
         }
         mapView.invalidate();
+    }
+
+    private void addClinicMarker(Clinic clinic) {
+        Marker marker = new Marker(mapView);
+        marker.setPosition(new GeoPoint(clinic.getLatitude(), clinic.getLongitude()));
+        marker.setTitle(clinic.getName());
+        if (clinic.getRating() > 0 && clinic.getReviewCount() > 0) {
+            marker.setSnippet(getString(R.string.map_snippet_format, clinic.getRating(), clinic.getReviewCount()));
+        }
+        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
+
+        Drawable icon = ContextCompat.getDrawable(this, org.osmdroid.library.R.drawable.marker_default);
+        if (icon != null) {
+            icon.setTint(0xFFD32F2F);
+            marker.setIcon(icon);
+        }
+        mapView.getOverlays().add(marker);
+    }
+
+    private float calculateDistanceKm(double lat, double lon) {
+        float[] distResults = new float[1];
+        Location.distanceBetween(userGeoPoint.getLatitude(), userGeoPoint.getLongitude(), lat, lon, distResults);
+        return distResults[0] / 1000f;
+    }
+
+    private String getGoogleMapsApiKey() {
+        if (!isBlank(BuildConfig.MAPS_API_KEY)) {
+            return BuildConfig.MAPS_API_KEY.trim();
+        }
+
+        try {
+            ApplicationInfo appInfo = getPackageManager().getApplicationInfo(getPackageName(), PackageManager.GET_META_DATA);
+            Bundle metaData = appInfo.metaData;
+            if (metaData == null) return "";
+
+            Object apiKeyValue = metaData.get(GOOGLE_MAPS_API_KEY_META_DATA);
+            if (apiKeyValue == null) return "";
+
+            String apiKey = String.valueOf(apiKeyValue).trim();
+            if (apiKey.startsWith("$") || apiKey.contains("MAPS_API_KEY")) return "";
+            return apiKey;
+        } catch (PackageManager.NameNotFoundException e) {
+            return "";
+        }
+    }
+
+    private String buildGooglePlacesIssue(JSONObject response, String status) {
+        String errorMessage = response.optString("error_message", "");
+        if (isBlank(errorMessage)) {
+            return getString(R.string.error_places_status, status);
+        }
+
+        return getString(R.string.error_places_status_with_message, status, errorMessage);
+    }
+
+    private void setGoogleFilterChipsEnabled(boolean enabled) {
+        setGoogleFilterChipEnabled(chipFilterRating, enabled);
+        setGoogleFilterChipEnabled(chipFilterWellKnown, enabled);
+        setGoogleFilterChipEnabled(chipFilterOpenNow, enabled);
+    }
+
+    private void setGoogleFilterChipEnabled(Chip chip, boolean enabled) {
+        if (chip == null) return;
+        if (!enabled) chip.setChecked(false);
+        chip.setEnabled(enabled);
+        chip.setAlpha(enabled ? 1f : 0.55f);
     }
 
     private String buildClinicAddress(JSONObject tags) {
@@ -380,22 +641,12 @@ public class FindDoctorActivity extends AppCompatActivity {
         return value == null || value.trim().isEmpty();
     }
 
-    private void addMarker(GeoPoint point, String title, boolean isUser) {
+    private void addSearchCenterMarker(GeoPoint point, String title) {
         Marker marker = new Marker(mapView);
         marker.setPosition(point);
         marker.setTitle(title);
         marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM);
-
-        if (isUser) {
-            marker.setIcon(ContextCompat.getDrawable(this, org.osmdroid.library.R.drawable.person));
-        } else {
-            // Create a tinted red marker for clinics
-            Drawable icon = ContextCompat.getDrawable(this, org.osmdroid.library.R.drawable.marker_default);
-            if (icon != null) {
-                icon.setTint(0xFFD32F2F);
-                marker.setIcon(icon);
-            }
-        }
+        marker.setIcon(ContextCompat.getDrawable(this, org.osmdroid.library.R.drawable.person));
         mapView.getOverlays().add(marker);
     }
 
